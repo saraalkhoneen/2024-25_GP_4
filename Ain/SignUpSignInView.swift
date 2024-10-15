@@ -2,8 +2,8 @@
 //  SignUpSignInView.swift
 //  Ain
 //
-//  Created by Sara alkhoneen on 08/04/1446 AH.
-//
+//  Created by joud alhussain and Sara alkhoneen
+
 import SwiftUI
 
 struct SignUpSignInView: View {

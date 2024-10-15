@@ -1,9 +1,6 @@
-//
 //  ResetPasswordEmailView.swift
 //  Ain
-//
-//  Created by Sara alkhoneen on 10/04/1446 AH.
-//
+//  Created by Sara alkhoneen and joud alhussain
 import SwiftUI
 
 struct ResetPasswordEmailView: View {
@@ -26,7 +23,7 @@ struct ResetPasswordEmailView: View {
                 .font(.title2)
                 .fontWeight(.bold)
             
-            Text("Enter your email and we will send you a code to reset your password.")
+            Text("Enter your email to reset your password.")
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
                 .padding(.bottom, 30)

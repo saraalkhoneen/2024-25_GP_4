@@ -1,9 +1,7 @@
-//
 //  SharedComponents.swift
 //  Ain
-//
 //  Created by Sara alkhoneen on 08/04/1446 AH.
-//
+
 
 import SwiftUI
 

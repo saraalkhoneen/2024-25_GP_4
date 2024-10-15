@@ -1,9 +1,6 @@
-//
 //  SettingsView.swift
 //  Ain
-//
-//  Created by Sara alkhoneen on 08/04/1446 AH.
-//
+//  Created by Sara alkhoneen and joud alhussain
 import SwiftUI
 
 struct SettingsView: View {
@@ -186,6 +183,19 @@ struct SettingsView: View {
                     .padding()
                 }
             }
+            .navigationBarItems(leading: HStack {
+                Button(action: {
+                    // Action to go back to the previous view
+                }) {
+                    HStack {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.white)
+                        Text("Back")
+                            .foregroundColor(.white)
+                    }
+                }
+            })
+            .navigationBarTitle("", displayMode: .inline) // Hides the default title
         }
     }
 }

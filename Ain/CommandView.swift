@@ -1,9 +1,7 @@
-//
 //  CommandView.swift
 //  Ain
-//
-//  Created by Sara alkhoneen on 11/04/1446 AH.
-//
+//  Created by Sara alkhoneen and jous alhussain
+
 
 import SwiftUI
 
@@ -22,7 +20,7 @@ struct CommandView: View {
                 
                 Spacer()
                 
-                Text("Command:")
+                Text("Command List:")
                     .font(.title2)
                     .fontWeight(.bold)
                 

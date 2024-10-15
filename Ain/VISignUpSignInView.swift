@@ -1,9 +1,7 @@
-//
 //  VISignUpSignInView.swift
 //  Ain
-//
-//  Created by Sara alkhoneen on 08/04/1446 AH.
-//
+//  Created by Sara alkhoneen and joud alhussain
+
 import SwiftUI
 
 struct VISignUpSignInView: View {

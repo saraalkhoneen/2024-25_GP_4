@@ -42,7 +42,7 @@ struct ContentView: View {
                     Spacer()
                     
                     // Welcome text
-                    Text("Welcome")
+                    Text("Welcome To Ain")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                         .padding(.top, 40)
