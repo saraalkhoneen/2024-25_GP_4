@@ -1,9 +1,7 @@
-//
 //  VisuallyImpairedView.swift
 //  Ain
-//
 //  Created by Sara alkhoneen and joud alhussain
-//
+
 import SwiftUI
 import AVFoundation
 

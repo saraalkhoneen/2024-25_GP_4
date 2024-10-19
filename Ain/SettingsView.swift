@@ -1,11 +1,15 @@
-//  SettingsView.swift
-//  Ain
-//  Created by Sara alkhoneen and joud alhussain
 import SwiftUI
+import Firebase
+import FirebaseAuth
+import FirebaseFirestore
 
 struct SettingsView: View {
     @State private var isShowingSignOutAlert = false
     @State private var isPushNotificationsEnabled = true
+    @State private var userName: String = "Loading..." // Placeholder for Firebase data
+
+    // Reference to Firestore
+    let db = Firestore.firestore()
 
     var body: some View {
         NavigationView {
@@ -26,7 +30,7 @@ struct SettingsView: View {
                                     .font(.largeTitle)
                                     .foregroundColor(.white)
                                     .fontWeight(.bold)
-                                    .padding(.top,80)
+                                    .padding(.top, 80)
                                 Spacer()
                             }
                         )
@@ -43,7 +47,8 @@ struct SettingsView: View {
                                     .clipShape(Circle())
                                     .padding(.leading)
                                 
-                                Text("Badr")
+                                // User name fetched from Firebase Firestore
+                                Text(userName)
                                     .font(.title2)
                                     .fontWeight(.bold)
                                     .padding(.leading, 10)
@@ -168,7 +173,7 @@ struct SettingsView: View {
                             Alert(
                                 title: Text("Are you sure you want to sign out?"),
                                 primaryButton: .destructive(Text("Sign out")) {
-                                    // Handle the sign-out action here
+                                    signOut()
                                 },
                                 secondaryButton: .cancel()
                             )
@@ -196,6 +201,32 @@ struct SettingsView: View {
                 }
             })
             .navigationBarTitle("", displayMode: .inline) // Hides the default title
+            .onAppear {
+                fetchDataFromFirestore() // Fetch user data when the view appears
+            }
+        }
+    }
+    
+    // Fetch user data from Firestore
+    func fetchDataFromFirestore() {
+        let userId = "YOUR_USER_ID" // Replace with dynamic user ID
+        db.collection("users").document(userId).getDocument { document, error in
+            if let document = document, document.exists {
+                self.userName = document.data()?["name"] as? String ?? "No Name"
+            } else {
+                print("Document does not exist")
+            }
+        }
+    }
+    
+    // Sign out function using Firebase Authentication
+    func signOut() {
+        do {
+            try Auth.auth().signOut()
+            // Navigate to login screen or handle sign-out UI
+            print("Successfully signed out.")
+        } catch let signOutError as NSError {
+            print("Error signing out: %@", signOutError)
         }
     }
 }

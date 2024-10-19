@@ -3,6 +3,7 @@
 //  Created by Sara alkhoneen and joud alhussain
 
 import SwiftUI
+import Firebase
 import FirebaseCore
 @main
 struct AinApp: App {

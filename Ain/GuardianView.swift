@@ -1,6 +1,10 @@
 import SwiftUI
-
+import Firebase
+import FirebaseAuth
+import FirebaseFirestore
 struct GuardianView: View {
+    @State private var uniqueCode: String = "" // Holds the fetched unique code
+    
     var body: some View {
         NavigationView {
             ZStack {
@@ -22,7 +26,14 @@ struct GuardianView: View {
                                 .padding(.top, 20)
                         }
                     }
-                    
+                    // Unique Code Display
+                                        Text("Your Unique Code: \(uniqueCode)")
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                            .padding()
+                                            .background(Color.black.opacity(0.7))
+                                            .cornerRadius(10)
+                                            .padding(.horizontal, 20)
                     // Main Grid of Boxes
                     VStack(spacing: 20) {
                         HStack(spacing: 15) {
@@ -89,8 +100,36 @@ struct GuardianView: View {
                     .padding(.bottom, 20)
                 }
             }
+            .onAppear {
+                            fetchUniqueCode() // Call the fetch function on appear
+                        }
         }
     }
+    
+    private func fetchUniqueCode() {
+        let db = Firestore.firestore()
+
+        // Fetching the currently logged-in user ID
+        if let user = Auth.auth().currentUser {
+            let userId = user.uid // Get the unique ID of the currently logged-in user
+
+            db.collection("Guardian").document(userId).getDocument { (document, error) in
+                if let document = document, document.exists {
+                    if let code = document.data()?["uniqueCode"] as? String {
+                        uniqueCode = code // Update the unique code
+                    } else {
+                        uniqueCode = "No unique code found."
+                    }
+                } else {
+                    uniqueCode = "Error fetching code: \(error?.localizedDescription ?? "Unknown error")"
+                }
+            }
+        } else {
+            uniqueCode = "User not logged in."
+        }
+    }
+
+
 }
 
 // BoxView for the main grid boxes

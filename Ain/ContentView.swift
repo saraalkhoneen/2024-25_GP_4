@@ -29,26 +29,22 @@ struct ContentView: View {
                     .position(x: UIScreen.main.bounds.width, y: UIScreen.main.bounds.height)
                 
                 VStack {
-                    // Logo at the top right
-                    HStack {
-                        Spacer()
-                        Image("icon") // Replace with your logo if you have one
-                            .resizable()
-                            .frame(width: 80, height: 80)
-                            .padding(.trailing, 20)
-                            .padding(.top, 20)
-                    }
-                    
                     Spacer()
+
+                    // Logo centered, bigger, and moved slightly lower
+                    Image("icon") // Replace with your logo
+                        .resizable()
+                        .frame(width: 150, height: 150) // Increased size
+                        .padding(.bottom, 50) // Moves the image a bit lower
                     
                     // Welcome text
                     Text("Welcome To Ain")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                        .padding(.top, 40)
+                        .padding(.bottom, 20)
                     
                     Spacer()
-                    
+
                     // Buttons for Visually Impaired and Guardian
                     VStack(spacing: 20) {
                         // Navigate to VISignUpSignInView
@@ -145,3 +141,4 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
     }
 }
+
