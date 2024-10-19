@@ -1,9 +1,6 @@
-//
 //  WaveShape.swift
 //  Ain
-//
 //  Created by Sara alkhoneen on 11/04/1446 AH.
-//
 import SwiftUI
 struct BackgroundWaveShape: Shape {
     var phase: CGFloat

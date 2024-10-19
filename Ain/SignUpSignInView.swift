@@ -1,7 +1,5 @@
-//
 //  SignUpSignInView.swift
 //  Ain
-//
 //  Created by joud alhussain and Sara alkhoneen
 
 import SwiftUI
