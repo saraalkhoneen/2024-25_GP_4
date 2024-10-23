@@ -7,9 +7,9 @@ struct SettingsView: View {
     @State private var isShowingSignOutAlert = false
     @State private var isPushNotificationsEnabled = true
     @State private var userName: String = "Loading..." // Placeholder for Firebase data
-
-    // Reference to Firestore
-    let db = Firestore.firestore()
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    @Environment(\.presentationMode) var presentationMode // For navigating back after sign-out
 
     var body: some View {
         NavigationView {
@@ -20,21 +20,16 @@ struct SettingsView: View {
                 
                 VStack(spacing: 20) {
                     // Top background with the settings title
-                    TopCurveShape()
-                        .fill(Color(hexString: "3C6E71"))
-                        .frame(height: 150)
-                        .overlay(
-                            HStack {
-                                Spacer()
-                                Text("Settings")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.white)
-                                    .fontWeight(.bold)
-                                    .padding(.top, 80)
-                                Spacer()
-                            }
-                        )
-                        .edgesIgnoringSafeArea(.top)
+                    HStack {
+                        Spacer()
+                        Text("Settings")
+                            .font(.largeTitle)
+                            .foregroundColor(.white)
+                            .fontWeight(.bold)
+                            .padding(.top, 80)
+                        Spacer()
+                    }
+                    .edgesIgnoringSafeArea(.top)
                     
                     // White box container for all content
                     VStack(spacing: 20) {
@@ -172,6 +167,7 @@ struct SettingsView: View {
                         .alert(isPresented: $isShowingSignOutAlert) {
                             Alert(
                                 title: Text("Are you sure you want to sign out?"),
+                                message: Text("You will be logged out of your account."),
                                 primaryButton: .destructive(Text("Sign out")) {
                                     signOut()
                                 },
@@ -202,20 +198,35 @@ struct SettingsView: View {
             })
             .navigationBarTitle("", displayMode: .inline) // Hides the default title
             .onAppear {
-                fetchDataFromFirestore() // Fetch user data when the view appears
+                fetchUserData() // Fetch user data when the view appears
+            }
+            .alert(isPresented: $showAlert) {
+                Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
             }
         }
     }
     
-    // Fetch user data from Firestore
-    func fetchDataFromFirestore() {
-        let userId = "YOUR_USER_ID" // Replace with dynamic user ID
-        db.collection("users").document(userId).getDocument { document, error in
-            if let document = document, document.exists {
-                self.userName = document.data()?["name"] as? String ?? "No Name"
-            } else {
-                print("Document does not exist")
+    // Fetch user's first and last name from Firestore
+    private func fetchUserData() {
+        let db = Firestore.firestore()
+
+        // Fetching the currently logged-in user ID
+        if let user = Auth.auth().currentUser {
+            let userId = user.uid // Get the unique ID of the currently logged-in user
+
+            db.collection("Guardian").document(userId).getDocument { (document, error) in
+                if let document = document, document.exists {
+                    let firstName = document.data()?["firstName"] as? String ?? ""
+                    let lastName = document.data()?["lastName"] as? String ?? ""
+                    
+                    // Combine first and last names
+                    userName = "\(firstName) \(lastName)"
+                } else {
+                    userName = "Error fetching name: \(error?.localizedDescription ?? "Unknown error")"
+                }
             }
+        } else {
+            userName = "User not logged in."
         }
     }
     
@@ -223,10 +234,12 @@ struct SettingsView: View {
     func signOut() {
         do {
             try Auth.auth().signOut()
-            // Navigate to login screen or handle sign-out UI
-            print("Successfully signed out.")
+            // After successful sign-out, navigate back to the previous screen
+            presentationMode.wrappedValue.dismiss()
         } catch let signOutError as NSError {
             print("Error signing out: %@", signOutError)
+            alertMessage = "Error signing out: \(signOutError.localizedDescription)"
+            showAlert = true
         }
     }
 }

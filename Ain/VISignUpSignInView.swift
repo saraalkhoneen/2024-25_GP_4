@@ -1,6 +1,6 @@
 // SignUpSignInView.swift
 // Ain
-// Created by [Your Name]
+// Created by sara alkhoneen and joud 
 import SwiftUI
 import Firebase
 import FirebaseAuth
