@@ -31,7 +31,7 @@ struct GuardianView: View {
                                             .font(.headline)
                                             .foregroundColor(.white)
                                             .padding()
-                                            .background(Color.black.opacity(0.7))
+                                            .background(Color.black.opacity(0.2))
                                             .cornerRadius(10)
                                             .padding(.horizontal, 20)
                     // Main Grid of Boxes
