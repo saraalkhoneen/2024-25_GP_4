@@ -35,14 +35,22 @@ struct ContentView: View {
                     Image("icon") // Replace with your logo
                         .resizable()
                         .frame(width: 150, height: 150) // Increased size
-                        .padding(.bottom, 50) // Moves the image a bit lower
+                        .padding(.bottom, 20) // Moves the image a bit lower
                     
-                    // Welcome text
+                    // Welcome text with white fill color and colored border
                     Text("Welcome To Ain")
                         .font(.largeTitle)
                         .fontWeight(.bold)
+                        .foregroundColor(.white) // Main text color
                         .padding(.bottom, 20)
-                    
+                        .overlay(
+                            Text("Welcome To Ain")
+                                .font(.largeTitle)
+                                .fontWeight(.bold)
+                                .foregroundColor(Color(hex: "#3C6E71"))
+                                .opacity(0.2)
+                            )
+
                     Spacer()
 
                     // Buttons for Visually Impaired and Guardian

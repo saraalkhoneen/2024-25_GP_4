@@ -2,124 +2,158 @@ import SwiftUI
 import Firebase
 import FirebaseAuth
 import FirebaseFirestore
-struct GuardianView: View {
-    @State private var uniqueCode: String = "" // Holds the fetched unique code
+
+// Model for Notification
+struct Notification: Identifiable {
+    let id: String
+    let title: String
+    let details: String
+    let date: Date
     
+    init(id: String = UUID().uuidString, title: String, details: String, date: Date) {
+        self.id = id
+        self.title = title
+        self.details = details
+        self.date = date
+    }
+    
+    // Convert to dictionary for Firestore storage
+    func toDictionary() -> [String: Any] {
+        return [
+            "id": id,
+            "title": title,
+            "details": details,
+            "date": Timestamp(date: date)
+        ]
+    }
+    
+    // Initialize from Firestore dictionary
+    init?(dictionary: [String: Any]) {
+        guard let id = dictionary["id"] as? String,
+              let title = dictionary["title"] as? String,
+              let details = dictionary["details"] as? String,
+              let timestamp = dictionary["date"] as? Timestamp else { return nil }
+        
+        self.id = id
+        self.title = title
+        self.details = details
+        self.date = timestamp.dateValue()
+    }
+}
+
+struct GuardianView: View {
+    private let db = Firestore.firestore() // Firestore reference
+    private let firstTimeLoginKey = "hasLoggedInAfterSignUp"
+
+    @State private var uniqueCode: String = ""
+    @State private var guardianName: String = ""
+    @State private var selectedTab: Int = 2
+    @State private var notifications: [Notification] = []
+
     var body: some View {
-        NavigationView {
-            ZStack {
-                // Background color
-                Color(hexString: "3C6E71")
-                    .edgesIgnoringSafeArea(.all)
-                
-                VStack(spacing: 20) {
-                    // Top right gear icon (settings)
-                    HStack {
-                        Spacer()
-                        // Navigation to SettingsView
-                        NavigationLink(destination: SettingsView()) {
-                            Image(systemName: "gearshape.fill")
-                                .resizable()
-                                .frame(width: 30, height: 30)
-                                .foregroundColor(.white)
-                                .padding(.trailing, 20)
-                                .padding(.top, 20)
-                        }
-                    }
-                    // Unique Code Display
-                                        Text("Your Unique Code: \(uniqueCode)")
-                                            .font(.headline)
-                                            .foregroundColor(.white)
-                                            .padding()
-                                            .background(Color.black.opacity(0.2))
-                                            .cornerRadius(10)
-                                            .padding(.horizontal, 20)
-                    // Main Grid of Boxes
-                    VStack(spacing: 20) {
-                        HStack(spacing: 15) {
-                            // Pictures & Videos
-                            BoxView(
-                                title: "PICTURES&\nVIDEOS",
-                                backgroundColor: Color(hexString: "D95F4B"),
-                                icon: Image(systemName: "cloud.fill")
-                            )
-                            
-                            // Navigation to LocationView
-                            NavigationLink(destination: LocationView()) {
-                                BoxView(
-                                    title: "LOCATION",
-                                    backgroundColor: Color(hexString: "1A3E48"),
-                                    icon: Image(systemName: "location.fill")
-                                )
-                            }
-                        }
-                        
-                        // Navigation to CommandView
-                        NavigationLink(destination: CommandView()) {
-                            BoxView(
-                                title: "COMMAND LIST",
-                                backgroundColor: Color(hexString: "EAE2D6"),
-                                icon: Image(systemName: "speaker.wave.2.fill")
-                            )
-                            .frame(height: 160)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    
-                    Spacer()
-                    
-                    // Notifications Box
-                    VStack(alignment: .leading) {
-                        HStack {
-                            Text("Notifications")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.black)
-                            Spacer()
-                            Text("3")
-                                .padding(5)
-                                .background(Color(hexString: "3C6E71"))
-                                .foregroundColor(.white)
-                                .cornerRadius(5)
-                        }
-                        .padding(.horizontal, 20)
-                        
-                        VStack(spacing: 10) {
-                            NotificationView(title: "Picture", time: "from 8 pm")
-                            NotificationView(title: "Video", time: "from 8 pm")
-                            NotificationView(title: "SOS", time: "from 8 pm")
-                        }
-                        .padding(.top, 10)
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 20)
-                        .background(Color.white)
-                        .cornerRadius(15)
-                        .shadow(radius: 5)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
+        TabView(selection: $selectedTab) {
+            NotificationsView1(notifications: $notifications)
+                .tabItem {
+                    Image(systemName: "bell.fill")
+                    Text("Notifications")
                 }
-            }
-            .onAppear {
-                            fetchUniqueCode() // Call the fetch function on appear
+                .tag(0)
+                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+            
+            MediaView1()
+                .tabItem {
+                    Image(systemName: "photo.fill")
+                    Text("Media")
+                }
+                .tag(1)
+                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+
+            NavigationView {
+                VStack {
+                    Image("icon")
+                        .resizable()
+                        .frame(width: 110, height: 110)
+                    
+                    VStack(spacing: 10) {
+                        Text("Hello \(guardianName)")
+                            .font(.title)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.black)
+                            .padding(.top, 20)
+
+                        Text("Your Unique Code: \(uniqueCode)")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(Color(hexString: "1A3E48"))
+                            .cornerRadius(10)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
+                    }
+                    
+                    VStack(spacing: 10) {
+                        Spacer()
+                        Text("Welcome to Ain")
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.black)
+                        
+                        Text("Ain helps guardians monitor and assist visually impaired users effectively.")
+                            .multilineTextAlignment(.center)
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 20)
+                        Spacer(minLength: 60)
+                        
+                        NavigationLink(destination: AddUserGuideView1()) {
+                            Text("How to get started")
+                                .foregroundColor(.white)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color(hexString: "1A3E48"))
+                                .cornerRadius(10)
+                                .shadow(radius: 5)
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 30)
+                    }
+                }
+                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+            }
+            .tabItem {
+                Image(systemName: "house.fill")
+                Text("Home")
+            }
+            .tag(2)
+            
+            LocationView1()
+                .tabItem {
+                    Image(systemName: "location.fill")
+                    Text("Location")
+                }
+                .tag(3)
+                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+            
+            SettingsView1()
+                .tabItem {
+                    Image(systemName: "gearshape.fill")
+                    Text("Settings")
+                }
+                .tag(4)
+                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+        }
+        .onAppear {
+            fetchGuardianData()
+            checkFirstTimeLogin() // Check first login after signup
+            loadNotificationsFromFirestore() // Load notifications from Firestore on app launch
         }
     }
     
-    private func fetchUniqueCode() {
-        let db = Firestore.firestore()
-
-        // Fetching the currently logged-in user ID
+    private func fetchGuardianData() {
         if let user = Auth.auth().currentUser {
-            let userId = user.uid // Get the unique ID of the currently logged-in user
-
-            db.collection("Guardian").document(userId).getDocument { (document, error) in
+            db.collection("Guardian").document(user.uid).getDocument { (document, error) in
                 if let document = document, document.exists {
-                    if let code = document.data()?["uniqueCode"] as? String {
-                        uniqueCode = code // Update the unique code
-                    } else {
-                        uniqueCode = "No unique code found."
-                    }
+                    uniqueCode = document.data()?["uniqueCode"] as? String ?? "No unique code found."
+                    guardianName = [document.data()?["firstName"], document.data()?["lastName"]].compactMap { $0 as? String }.joined(separator: " ")
                 } else {
                     uniqueCode = "Error fetching code: \(error?.localizedDescription ?? "Unknown error")"
                 }
@@ -129,76 +163,93 @@ struct GuardianView: View {
         }
     }
 
+    // Check if this is the first login after sign-up
+    private func checkFirstTimeLogin() {
+        let hasLoggedInAfterSignUp = UserDefaults.standard.bool(forKey: firstTimeLoginKey)
+        if !hasLoggedInAfterSignUp {
+            addNotification(title: "Welcome!", details: "You've successfully logged in after signing up.")
+            UserDefaults.standard.set(true, forKey: firstTimeLoginKey)
+        }
+    }
 
-}
+    // Add a notification and save it to Firestore
+    private func addNotification(title: String, details: String) {
+        let newNotification = Notification(title: title, details: details, date: Date())
+        notifications.append(newNotification)
+        saveNotificationToFirestore(newNotification) // Save to Firestore
+    }
 
-// BoxView for the main grid boxes
-struct BoxView: View {
-    var title: String
-    var backgroundColor: Color
-    var icon: Image
-    
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            backgroundColor
-                .cornerRadius(15)
-                .frame(height: 130)
-                .shadow(radius: 5)
-            
-            VStack(alignment: .leading) {
-                icon
-                    .resizable()
-                    .frame(width: 30, height: 30)
-                    .foregroundColor(.white)
-                    .padding([.top, .trailing], 10)
-                
-                Spacer()
-                
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .bold()
-                    .padding(.leading)
-                    .padding(.bottom, 10)
+    // Save a notification to Firestore
+    private func saveNotificationToFirestore(_ notification: Notification) {
+        if let userId = Auth.auth().currentUser?.uid {
+            db.collection("Guardian").document(userId).collection("Notifications").document(notification.id).setData(notification.toDictionary()) { error in
+                if let error = error {
+                    print("Error saving notification: \(error)")
+                }
             }
-            .padding()
+        }
+    }
+
+    // Load notifications from Firestore
+    private func loadNotificationsFromFirestore() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        db.collection("Guardian").document(userId).collection("Notifications").getDocuments { (snapshot, error) in
+            if let error = error {
+                print("Error loading notifications: \(error.localizedDescription)")
+                return
+            }
+            if let documents = snapshot?.documents {
+                notifications = documents.compactMap { Notification(dictionary: $0.data()) }
+            }
         }
     }
 }
 
-// NotificationView for each notification
-struct NotificationView: View {
-    var title: String
-    var time: String
-    
+// Notifications View
+struct NotificationsView1: View {
+    @Binding var notifications: [Notification]
+
     var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.black)
-                Text("Thu")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                Text(time)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+        NavigationView {
+            List(notifications) { notification in
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(notification.title)
+                        .font(.headline)
+                        .foregroundColor(.black)
+                    
+                    Text(notification.details)
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    
+                    Text("Date: \(formattedDate(notification.date))")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                .padding(.vertical, 5)
             }
-            
-            Spacer()
-            
-            Image(systemName: "trash.fill")
-                .foregroundColor(.gray)
-                .padding()
+            .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+            .navigationTitle("Notifications")
         }
-        .padding()
-        .background(Color(UIColor.systemGray6))
-        .cornerRadius(10)
+    }
+    
+    private func formattedDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
+
+// Placeholder views
+struct MediaView1: View { var body: some View { Text("Media Content") } }
+struct AddUserGuideView1: View { var body: some View { Text("Guide on Adding a Visually Impaired User") } }
+struct LocationView1: View { var body: some View { Text("Location Content") } }
+struct SettingsView1: View { var body: some View { Text("Settings Content") } }
 
 struct GuardianView_Previews: PreviewProvider {
     static var previews: some View {
         GuardianView()
     }
 }
+
