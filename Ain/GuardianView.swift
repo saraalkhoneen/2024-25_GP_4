@@ -102,7 +102,7 @@ struct GuardianView: View {
                                 .fontWeight(.semibold)
                                 .foregroundColor(.black)
                             
-                            Text("Ain helps guardians monitor and assist visually impaired users effectively.")
+                            Text("Support your loved ones effortlessly, stay connected, and be there whenever they need you.")
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.black)
                                 .padding(.horizontal, 20)
@@ -120,6 +120,7 @@ struct GuardianView: View {
                             .padding(.horizontal, 20)
                             .padding(.bottom, 30)
                         }
+                        .navigationBarBackButtonHidden(true)
                     }
                     .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
                     .navigationBarBackButtonHidden(true)
