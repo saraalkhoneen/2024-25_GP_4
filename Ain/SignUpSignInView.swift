@@ -270,27 +270,51 @@ struct StepByStepSignUpView: View {
         }
     }
 
+    // Updated saveUserToFirestore to ensure unique code is generated
     private func saveUserToFirestore(user: FirebaseAuth.User) {
-        Firestore.firestore().collection("Guardian").document(user.uid).setData([
-            "firstName": firstName,
-            "lastName": lastName,
-            "email": email,
-            "uniqueCode": generateUniqueCode()
-        ]) { error in
-            if let error = error {
-                alertMessage = "Error saving user info: \(error.localizedDescription)"
-                showAlert = true
-            } else {
-                selectedTab = "Sign In"
-                step = 1
+        generateUniqueCode { uniqueCode in
+            Firestore.firestore().collection("Guardian").document(user.uid).setData([
+                "firstName": firstName,
+                "lastName": lastName,
+                "email": email,
+                "uniqueCode": uniqueCode
+            ]) { error in
+                if let error = error {
+                    alertMessage = "Error saving user info: \(error.localizedDescription)"
+                    showAlert = true
+                } else {
+                    alertMessage = "Registration successful! Please check your inbox for email verification."
+                    selectedTab = "Sign In"
+                    step = 1
+                }
             }
         }
     }
-    
-    private func generateUniqueCode() -> String {
-        let codePrefix = "\(firstName.prefix(2).uppercased())\(lastName.prefix(2).uppercased())"
-        let randomDigits = String(format: "%02d", Int.random(in: 0...99))
-        return "\(codePrefix)\(randomDigits)"
+
+    // Generates a unique code and checks it in Firestore before returning
+    private func generateUniqueCode(completion: @escaping (String) -> Void) {
+        var uniqueCode = ""
+        
+        func createAndCheckCode() {
+            uniqueCode = "\(firstName.prefix(2).uppercased())\(lastName.prefix(2).uppercased())\(String(format: "%02d", Int.random(in: 0...99)))"
+            
+            // Check if the unique code already exists
+            Firestore.firestore().collection("Guardian").whereField("uniqueCode", isEqualTo: uniqueCode).getDocuments { (snapshot, error) in
+                if let error = error {
+                    alertMessage = "Error checking unique code: \(error.localizedDescription)"
+                    showAlert = true
+                } else if snapshot?.documents.isEmpty == false {
+                    // Unique code already exists, generate a new one
+                    createAndCheckCode()
+                } else {
+                    // Unique code is available
+                    completion(uniqueCode)
+                }
+            }
+        }
+        
+        // Start generating and checking the unique code
+        createAndCheckCode()
     }
 }
 

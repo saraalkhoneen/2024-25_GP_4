@@ -12,17 +12,13 @@ struct VISignUpSignInView: View {
     var body: some View {
         NavigationView {
             VStack {
-                // Top background curve
                 TopCurveShape()
                     .fill(Color(hexString: "3C6E71"))
                     .frame(height: 40)
                     .edgesIgnoringSafeArea(.top)
                 
-                // Segmented control for Sign Up and Sign In
                 HStack(spacing: 0) {
-                    Button(action: {
-                        selectedTab = "Sign Up"
-                    }) {
+                    Button(action: { selectedTab = "Sign Up" }) {
                         Text("Sign Up")
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -31,9 +27,7 @@ struct VISignUpSignInView: View {
                             .cornerRadius(10, corners: [.topLeft, .bottomLeft])
                     }
                     
-                    Button(action: {
-                        selectedTab = "Sign In"
-                    }) {
+                    Button(action: { selectedTab = "Sign In" }) {
                         Text("Sign In")
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -44,10 +38,9 @@ struct VISignUpSignInView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 20)
-               
+                
                 Spacer().frame(height: 40)
                 
-                // Display Sign Up or Sign In based on selected tab
                 if selectedTab == "Sign Up" {
                     ViStepByStepSignUpView(selectedTab: $selectedTab)
                 } else {
@@ -61,17 +54,16 @@ struct VISignUpSignInView: View {
     }
 }
 
-// Step-by-Step Sign Up process
 struct ViStepByStepSignUpView: View {
     @Binding var selectedTab: String
     @State private var step = 1
-    @State private var firstName: String = ""
-    @State private var lastName: String = ""
-    @State private var email: String = ""
-    @State private var confirmEmail: String = ""
-    @State private var password: String = ""
-    @State private var confirmPassword: String = ""
-    @State private var uniqueCode: String = ""
+    @State private var firstName = ""
+    @State private var lastName = ""
+    @State private var email = ""
+    @State private var confirmEmail = ""
+    @State private var password = ""
+    @State private var confirmPassword = ""
+    @State private var uniqueCode = ""
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var isLoading = false
@@ -79,18 +71,10 @@ struct ViStepByStepSignUpView: View {
     var body: some View {
         VStack(spacing: 20) {
             if step == 1 {
-                // Step 1: First Name and Last Name
                 CustomTextField(placeholder: "First Name", text: $firstName)
                 CustomTextField(placeholder: "Last Name", text: $lastName)
                 
-                Button(action: {
-                    if firstName.isEmpty || lastName.isEmpty {
-                        alertMessage = "Please fill in both first name and last name."
-                        showAlert = true
-                    } else {
-                        step = 2
-                    }
-                }) {
+                Button(action: proceedToStep2) {
                     Text("Next")
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -100,14 +84,12 @@ struct ViStepByStepSignUpView: View {
                 }
                 .padding(.horizontal)
                 .disabled(isLoading)
+                
             } else if step == 2 {
-                // Step 2: Email and Confirm Email
                 CustomTextField(placeholder: "Email", text: $email)
                 CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
                 
-                Button(action: {
-                    validateEmails()
-                }) {
+                Button(action: validateEmails) {
                     Text("Next")
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -117,16 +99,13 @@ struct ViStepByStepSignUpView: View {
                 }
                 .padding(.horizontal)
                 .disabled(isLoading)
+                
             } else if step == 3 {
-                // Step 3: Password and Confirm Password
                 CustomTextField(placeholder: "Password", text: $password, isSecure: true)
                 CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
-                // Unique Code Field
                 CustomTextField(placeholder: "Unique Code", text: $uniqueCode)
                 
-                Button(action: {
-                    validatePasswords()
-                }) {
+                Button(action: registerUser) {
                     Text("Sign Up")
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -145,7 +124,218 @@ struct ViStepByStepSignUpView: View {
         .overlay(loadingOverlay)
     }
     
-    var loadingOverlay: some View {
+    private func proceedToStep2() {
+        if firstName.isEmpty {
+            alertMessage = "Please enter your first name."
+            showAlert = true
+        } else if lastName.isEmpty {
+            alertMessage = "Please enter your last name."
+            showAlert = true
+        } else {
+            step = 2
+        }
+    }
+    
+    private func validateEmails() {
+        guard !email.isEmpty, !confirmEmail.isEmpty else {
+            alertMessage = "Please fill in both email fields."
+            showAlert = true
+            return
+        }
+        
+        guard email == confirmEmail, isValidEmail(email) else {
+            alertMessage = email == confirmEmail ? "Invalid email format." : "Emails do not match."
+            showAlert = true
+            return
+        }
+        
+        checkEmailExists(email)
+    }
+    
+    private func checkEmailExists(_ email: String) {
+        isLoading = true
+        Firestore.firestore().collection("Visually_Impaired")
+            .whereField("email", isEqualTo: email)
+            .getDocuments { querySnapshot, error in
+                isLoading = false
+                if let error = error {
+                    alertMessage = "Error checking email: \(error.localizedDescription)"
+                    showAlert = true
+                } else if querySnapshot?.documents.isEmpty == false {
+                    alertMessage = "Email is already registered."
+                    showAlert = true
+                } else {
+                    step = 3
+                }
+            }
+    }
+    
+    private func registerUser() {
+        guard !firstName.isEmpty && !lastName.isEmpty else {
+            alertMessage = "Please fill in your first and last name."
+            showAlert = true
+            return
+        }
+        
+        // Validate email fields
+        validateEmails()
+        
+        // Validate password with detailed cases
+        if !isPasswordLongEnough(password) {
+            alertMessage = "Password must be at least 8 characters long."
+            showAlert = true
+            return
+        }
+        
+        if !containsUppercase(password) {
+            alertMessage = "Password must include at least one uppercase letter."
+            showAlert = true
+            return
+        }
+        
+        if !containsLowercase(password) {
+            alertMessage = "Password must include at least one lowercase letter."
+            showAlert = true
+            return
+        }
+        
+        if !containsNumber(password) {
+            alertMessage = "Password must include at least one number."
+            showAlert = true
+            return
+        }
+        
+        if !containsSpecialCharacter(password) {
+            alertMessage = "Password must include at least one special character."
+            showAlert = true
+            return
+        }
+        // Check if unique code is provided
+          guard !uniqueCode.isEmpty else {
+              alertMessage = "Please enter your unique code."
+              showAlert = true
+              return
+          }
+
+        // Check unique code before continuing
+        checkUniqueCodeExists(uniqueCode)
+    }
+
+    private func checkUniqueCodeExists(_ code: String) {
+        isLoading = true
+        Firestore.firestore().collection("Guardian")
+            .whereField("uniqueCode", isEqualTo: code.uppercased())
+            .getDocuments { snapshot, error in
+                isLoading = false
+                if let error = error {
+                    alertMessage = "Error checking unique code: \(error.localizedDescription)"
+                    showAlert = true
+                } else if snapshot?.documents.isEmpty == false {
+                    performUserRegistration()
+                } else {
+                    alertMessage = "Invalid unique code."
+                    showAlert = true
+                }
+            }
+    }
+    
+    private func performUserRegistration() {
+        isLoading = true
+        Auth.auth().createUser(withEmail: email, password: password) { result, error in
+            isLoading = false
+            if let error = error {
+                alertMessage = error.localizedDescription
+                showAlert = true
+            } else if let user = result?.user {
+                user.sendEmailVerification { error in
+                    if let error = error {
+                        alertMessage = "Failed to send verification email: \(error.localizedDescription)"
+                        showAlert = true
+                    } else {
+                        saveUserToFirestore(user: user)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func saveUserToFirestore(user: FirebaseAuth.User) {
+        let db = Firestore.firestore()
+        let visuallyImpairedData = [
+            "firstName": firstName,
+            "lastName": lastName,
+            "email": email,
+            "uniqueCode": uniqueCode.uppercased()
+        ]
+        
+        db.collection("Visually_Impaired").document(user.uid).setData(visuallyImpairedData) { error in
+            if let error = error {
+                alertMessage = "Error saving user: \(error.localizedDescription)"
+                showAlert = true
+            } else {
+                updateGuardianWithVisuallyImpairedUID(user.uid)
+            }
+        }
+    }
+
+    private func updateGuardianWithVisuallyImpairedUID(_ visuallyImpairedUID: String) {
+        let db = Firestore.firestore()
+        db.collection("Guardian")
+            .whereField("uniqueCode", isEqualTo: uniqueCode.uppercased())
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    alertMessage = "Error updating guardian: \(error.localizedDescription)"
+                    showAlert = true
+                } else if let document = snapshot?.documents.first {
+                    document.reference.updateData([
+                        "VI_ID": visuallyImpairedUID
+                    ]) { error in
+                        if let error = error {
+                            alertMessage = "Error linking with guardian: \(error.localizedDescription)"
+                        } else {
+                            alertMessage = "Registration successful. Please verify your email."
+                            showAlert = true
+                            selectedTab = "Sign In"
+                        }
+                    }
+                } else {
+                    alertMessage = "Guardian not found with provided unique code."
+                    showAlert = true
+                }
+            }
+    }
+
+    private func isValidEmail(_ email: String) -> Bool {
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}"
+        return NSPredicate(format: "SELF MATCHES %@", emailRegex).evaluate(with: email)
+    }
+
+    // Helper functions for specific password requirements
+    private func isPasswordLongEnough(_ password: String) -> Bool {
+        return password.count >= 8
+    }
+
+    private func containsUppercase(_ password: String) -> Bool {
+        let uppercaseRegex = ".[A-Z]+."
+        return NSPredicate(format: "SELF MATCHES %@", uppercaseRegex).evaluate(with: password)
+    }
+
+    private func containsLowercase(_ password: String) -> Bool {
+        let lowercaseRegex = ".[a-z]+."
+        return NSPredicate(format: "SELF MATCHES %@", lowercaseRegex).evaluate(with: password)
+    }
+
+    private func containsNumber(_ password: String) -> Bool {
+        let numberRegex = ".[0-9]+."
+        return NSPredicate(format: "SELF MATCHES %@", numberRegex).evaluate(with: password)
+    }
+
+    private func containsSpecialCharacter(_ password: String) -> Bool {
+        let specialCharacterRegex = ".[!@#$%^&(),.?\":{}|<>]+.*"
+        return NSPredicate(format: "SELF MATCHES %@", specialCharacterRegex).evaluate(with: password)
+    }
+
+    private var loadingOverlay: some View {
         Group {
             if isLoading {
                 Color.black.opacity(0.4)
@@ -156,268 +346,121 @@ struct ViStepByStepSignUpView: View {
             }
         }
     }
-    
-    private func validateEmails() {
-        if email.isEmpty || confirmEmail.isEmpty {
-            alertMessage = "Please fill in both email fields."
-            showAlert = true
-        } else if !isValidEmail(email) {
-            alertMessage = "Please enter a valid email address."
-            showAlert = true
-        } else if email != confirmEmail {
-            alertMessage = "The email addresses do not match. Please check and try again."
-            showAlert = true
-        } else {
-            checkEmailExists(email) // Check if email exists before proceeding
-        }
-    }
-    
-    private func validatePasswords() {
-        if password.isEmpty || confirmPassword.isEmpty {
-            alertMessage = "Please fill in both password fields."
-            showAlert = true
-        } else if password != confirmPassword {
-            alertMessage = "The passwords do not match. Please check and try again."
-            showAlert = true
-        } else if !isPasswordStrong(password) {
-            alertMessage = "Password must be at least 6 characters long, include an uppercase letter, a number, and a special character."
-            showAlert = true
-        } else {
-            register()
-        }
-    }
-    
-    // Email and password validation functions
-    func isValidEmail(_ email: String) -> Bool {
-        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}"
-        let predicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
-        return predicate.evaluate(with: email)
-    }
-    
-    func isPasswordStrong(_ password: String) -> Bool {
-        let passwordRegex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,}$"
-        let predicate = NSPredicate(format: "SELF MATCHES %@", passwordRegex)
-        return predicate.evaluate(with: password)
-    }
-    
-    // Email existence check
-    func checkEmailExists(_ email: String) {
-        isLoading = true
-        let db = Firestore.firestore()
-        db.collection("Guardian").whereField("email", isEqualTo: email).getDocuments { (querySnapshot, error) in
-            isLoading = false
-            if let error = error {
-                alertMessage = "Error checking email: \(error.localizedDescription)"
-                showAlert = true
-            } else if let documents = querySnapshot?.documents, !documents.isEmpty {
-                alertMessage = "Email is already registered. Please use a different email."
-                showAlert = true
-            } else {
-                // Proceed to step 3 if email does not exist
-                step = 3
+}
+
+
+// Sign In View
+struct ViSignInView: View {
+    @State private var email = ""
+    @State private var password = ""
+    @State private var uniqueCode = ""
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    @State private var isLoading = false
+    @State private var navigateToMainView = false
+
+    var body: some View {
+        VStack(spacing: 20) {
+            CustomTextField(placeholder: "Email", text: $email)
+            CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+            CustomTextField(placeholder: "Unique Code", text: $uniqueCode)
+            
+            Button(action: signInUser) {
+                Text("Sign In")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(hexString: "D95F4B"))
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
             }
+            .padding(.horizontal)
+            .disabled(isLoading)
+            
+            Button(action: resetPassword) {
+                Text("Reset Password")
+                    .foregroundColor(.blue)
+            }
+            .padding(.top, 20)
+            
+            NavigationLink(destination: VisuallyImpairedView(), isActive: $navigateToMainView) { EmptyView() }
         }
+        .alert(isPresented: $showAlert) {
+            Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+        }
+        .padding()
+        .overlay(loadingOverlay)
     }
     
-    func register() {
+    private func signInUser() {
         isLoading = true
-        let uppercasedUniqueCode = uniqueCode.uppercased()
         let db = Firestore.firestore()
         
-        db.collection("Guardian").whereField("uniqueCode", isEqualTo: uppercasedUniqueCode).getDocuments { (querySnapshot, error) in
-            if let error = error {
-                self.alertMessage = "Error checking unique code: \(error.localizedDescription)"
-                self.showAlert = true
-                self.isLoading = false
-                return
-            }
+        db.collection("Guardian").whereField("uniqueCode", isEqualTo: uniqueCode.uppercased()).getDocuments { snapshot, error in
+            isLoading = false
             
-            if let documents = querySnapshot?.documents, let guardianDoc = documents.first {
-                Auth.auth().createUser(withEmail: self.email, password: self.password) { authResult, error in
-                    self.isLoading = false
+            if let error = error {
+                alertMessage = "issue in checking your unique code. Please try again later. Error: \(error.localizedDescription)"
+                showAlert = true
+            } else if let documents = snapshot?.documents, !documents.isEmpty {
+                
+                Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
+                    isLoading = false
+                    
                     if let error = error {
-                        self.alertMessage = "Error signing up: \(error.localizedDescription)"
-                        self.showAlert = true
-                    } else if let authResult = authResult {
-                        // Send verification email
-                        authResult.user.sendEmailVerification { error in
-                            if let error = error {
-                                self.alertMessage = "Error sending verification email: \(error.localizedDescription)"
-                                self.showAlert = true
-                            } else {
-                                // Save visually impaired user details to Firestore
-                                let userRef = db.collection("Visually_Impaired").document(authResult.user.uid)
-                                userRef.setData([
-                                    "firstName": self.firstName,
-                                    "lastName": self.lastName,
-                                    "email": self.email,
-                                    "guardianId": guardianDoc.documentID
-                                ]) { error in
-                                    if let error = error {
-                                        self.alertMessage = "Error saving user details: \(error.localizedDescription)"
-                                        self.showAlert = true
-                                    } else {
-                                        self.alertMessage = "Successfully signed up! A verification email has been sent. Please verify your email before signing in."
-                                        self.showAlert = true
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                                            self.selectedTab = "Sign In"
-                                        }
-                                    }
-                                }
-                            }
+                        switch AuthErrorCode(rawValue: error._code) {
+                        case .wrongPassword:
+                            alertMessage = "The password is incorrect."
+                        case .invalidEmail:
+                            alertMessage = "The email address is invalid."
+                        case .userNotFound:
+                            alertMessage = "No account found for this email."
+                        default:
+                            alertMessage = "Sign-in failed due to an unexpected error: \(error.localizedDescription). Please try again."
                         }
+                        showAlert = true
+                    } else if let user = authResult?.user, !user.isEmailVerified {
+                        alertMessage = "Your email is not verified. Please check your inbox."
+                        showAlert = true
+                    } else {
+                        navigateToMainView = true
                     }
                 }
+                
             } else {
-                self.isLoading = false
-                self.alertMessage = "Invalid unique code."
-                self.showAlert = true
+                alertMessage = "The unique code entered is invalid."
+                showAlert = true
             }
         }
     }
+    
+    private func resetPassword() {
+        guard !email.isEmpty else {
+            alertMessage = "Please enter your email address."
+            showAlert = true
+            return
+        }
 
+        Auth.auth().sendPasswordReset(withEmail: email) { error in
+            alertMessage = error?.localizedDescription ?? "Password reset email sent."
+            showAlert = true
+        }
+    }
+    
+    private var loadingOverlay: some View {
+        Group {
+            if isLoading {
+                Color.black.opacity(0.4)
+                    .edgesIgnoringSafeArea(.all)
+                ProgressView("Loading...")
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.5)
+            }
+        }
+    }
 }
-// Sign In View
- struct ViSignInView: View {
-     @State private var email: String = ""
-     @State private var password: String = ""
-     @State private var uniqueCode: String = ""
-     @State private var showAlert = false
-     @State private var alertMessage = ""
-     @State private var isLoading = false
-     @State private var navigateToVisuallyImpaired = false // State variable for navigation
-     
-     var body: some View {
-         VStack(spacing: 20) {
-             CustomTextField(placeholder: "Email", text: $email)
-             CustomTextField(placeholder: "Password", text: $password, isSecure: true)
-             CustomTextField(placeholder: "Unique Code", text: $uniqueCode)
-             
-             Button(action: {
-                 signIn()
-             }) {
-                 Text("Sign In")
-                     .frame(maxWidth: .infinity)
-                     .padding()
-                     .background(Color(hexString: "D95F4B"))
-                     .foregroundColor(.white)
-                     .cornerRadius(12)
-             }
-             .padding(.horizontal)
-             .disabled(isLoading)
-             //Button to reset password
-                         Button(action: {
-                         resetPassword()
-                         }) {
-                             Text("Reset Password")
-                                 .foregroundColor(.blue)
-                                 .padding()
-                         }
-                         .padding(.horizontal)
-                         .disabled(isLoading)
-             
-             // NavigationLink to VisuallyImpairedView
-             NavigationLink(destination: VisuallyImpairedView(), isActive: $navigateToVisuallyImpaired) { EmptyView() }
-         }
-         .alert(isPresented: $showAlert) {
-             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-         }
-         .padding(.horizontal)
-         .overlay(loadingOverlay)
-     }
-     
-     var loadingOverlay: some View {
-         Group {
-             if isLoading {
-                 Color.black.opacity(0.4)
-                     .edgesIgnoringSafeArea(.all)
-                 ProgressView("Loading...")
-                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                     .scaleEffect(1.5)
-                     .frame(maxWidth: 100, maxHeight: 100) // Set a fixed size for the loading indicator
-             }
-         }
-     }
-     
-     func signIn() {
-         isLoading = true
-         let uppercasedUniqueCode = uniqueCode.uppercased()
-         
-         Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
-             isLoading = false
-             if let error = error {
-                 alertMessage = "Error signing in: \(error.localizedDescription)"
-                 showAlert = true
-             } else if let authResult = authResult {
-                 // Check if the email is verified
-                 if authResult.user.isEmailVerified {
-                     let db = Firestore.firestore()
-                     db.collection("Guardian").whereField("uniqueCode", isEqualTo: uppercasedUniqueCode).getDocuments { (querySnapshot, error) in
-                         if let error = error {
-                             alertMessage = "Error checking unique code: \(error.localizedDescription)"
-                             showAlert = true
-                         } else if let documents = querySnapshot?.documents, let guardianDoc = documents.first {
-                             // Unique code is valid, guardian found
-                             navigateToVisuallyImpaired = true
-                         } else {
-                             alertMessage = "Unique code is invalid."
-                             showAlert = true
-                         }
-                     }
-                 } else {
-                     alertMessage = "Your email address has not been verified. Please check your inbox."
-                     showAlert = true
-                 }
-             }
-         }
-     }
-     // Function to reset password
-         func resetPassword() {
-             guard !email.isEmpty else {
-                 alertMessage = "Please enter your email address."
-                 showAlert = true
-                 return
-             }
 
-             Auth.auth().sendPasswordReset(withEmail: email) { error in
-                 if let error = error {
-                     alertMessage = error.localizedDescription
-                 } else {
-                     alertMessage = "Password reset email sent. Please check your inbox."
-                 }
-                 showAlert = true
-             }
-         }
-
- }
-
- // Custom TextField
-     struct CustomTextField1: View {
-         var placeholder: String
-         @Binding var text: String
-         var isSecure: Bool = false
-         
-         var body: some View {
-             Group {
-                 if isSecure {
-                     SecureField(placeholder, text: $text)
-                         .padding()
-                         .background(Color.gray.opacity(0.2))
-                         .cornerRadius(12)
-                 } else {
-                     TextField(placeholder, text: $text)
-                         .autocapitalization(.allCharacters)
-                         .disableAutocorrection(true)
-                         .padding()
-                         .background(Color.gray.opacity(0.2))
-                         .cornerRadius(12)
-                 }
-             }
-         }
-     }
-     struct ViSignUpSignInView_Previews: PreviewProvider {
-         static var previews: some View {
-             VISignUpSignInView()
-         }
-     }
-
+struct VISignUpSignInView_Previews: PreviewProvider {
+    static var previews: some View {
+        VISignUpSignInView()
+    }
+}
