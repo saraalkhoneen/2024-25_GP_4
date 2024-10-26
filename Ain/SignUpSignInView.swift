@@ -50,6 +50,7 @@ struct SignUpSignInView: View {
                 Spacer()
             }
             .background(Color.white.edgesIgnoringSafeArea(.all))
+            .navigationBarBackButtonHidden(true)
         }
     }
 }
@@ -366,8 +367,7 @@ struct SignInView: View {
                 showAlert = true
             } else if let user = Auth.auth().currentUser {
                 if user.isEmailVerified {
-                    alertMessage = "Sign in successful! Welcome, \(email)."
-                    showAlert = true
+                
                     isSignedIn = true
                 } else {
                     alertMessage = "Please verify your email before signing in."

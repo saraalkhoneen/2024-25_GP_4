@@ -118,6 +118,7 @@ struct GuardianView: View {
                     }
                 }
                 .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+                .navigationBarBackButtonHidden(true)
             }
             .tabItem {
                 Image(systemName: "house.fill")
