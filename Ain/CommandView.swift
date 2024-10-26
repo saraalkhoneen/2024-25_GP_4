@@ -1,88 +1,147 @@
-//  CommandView.swift
-//  Ain
-//  Created by Sara alkhoneen and jous alhussain
-
-
 import SwiftUI
 
 struct CommandView: View {
-    var body: some View {
-        VStack {
-            // Navigation bar with back button and settings button
-            HStack {
-                // Back button
-                // GuardianView button
-                NavigationLink(destination: GuardianView()) {
-                    Image(systemName: "arrow.left")
-                        .foregroundColor(.black)
-                        .padding()
-                }
-                
-                Spacer()
-                
-                Text("Command List:")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                
-                Spacer()
-                
-                // Settings button
-                NavigationLink(destination: SettingsView()) {
-                    Image(systemName: "gearshape.fill")
-                        .resizable()
-                        .frame(width: 30, height: 30)
-                        .foregroundColor(.black)
-                        .padding()
-                }
-            }
-            .padding(.horizontal, 20)
-            
-            // List of Command Buttons
-            VStack(spacing: 20) {
-                CommandButton(title: "Ain Start", icon: Image(systemName: "play.fill"))
-                CommandButton(title: "Ain Find Text", icon: Image(systemName: "magnifyingglass"))
-                CommandButton(title: "Ain Read Text", icon: Image(systemName: "speaker.wave.2.fill"))
-                CommandButton(title: "Ain Help", icon: Image(systemName: "exclamationmark.triangle.fill"))
-                CommandButton(title: "Ain Stop", icon: Image(systemName: "nosign"))
-            }
-            .padding(.horizontal, 20)
-            
-            Spacer()
-        }
-        .navigationBarHidden(true) // Hides the default navigation bar
+    @State private var showInfoAlert = false // State to control the general info alert
+    
+    // Custom type to store command info and conform to Identifiable
+    struct CommandInfo: Identifiable {
+        let id = UUID()
+        let message: String
     }
-}
-
-// Reusable component for Command buttons
-struct CommandButton: View {
-    var title: String
-    var icon: Image
+    
+    @State private var activeCommandInfo: CommandInfo? // Stores the information for the tapped command
     
     var body: some View {
-        HStack {
-            icon
-                .resizable()
-                .frame(width: 30, height: 30)
-                .foregroundColor(Color(hexString: "3C6E71")) // Use hex initializer for icon color
+        VStack(alignment: .leading, spacing: 20) {
+            // Page Title with Info Hint
+            HStack {
+                Text("Command List")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .foregroundColor(Color(hexString: "3C6E71"))
+
+                Button(action: {
+                    showInfoAlert.toggle()
+                }) {
+                    Image(systemName: "questionmark.circle")
+                        .foregroundColor(Color(hexString: "3C6E71"))
+                        .font(.title2)
+                        .padding(.leading, 4)
+                }
+                .alert(isPresented: $showInfoAlert) {
+                    Alert(
+                        title: Text("Info"),
+                        message: Text("Ain allows the visually impaired user to interact with the app using voice commands for easier use."),
+                        dismissButton: .default(Text("OK"))
+                    )
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal)
+            .padding(.top, 20)
+
+            Divider()
+                .background(Color(hexString: "3C6E71"))
+                .padding(.horizontal)
+
+            // Instructions for Adding a Visually Impaired User
+            VStack(alignment: .leading, spacing: 10) {
+                Text("How to add a Visually Impaired user:")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(hexString: "3C6E71"))
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("1. Download Ain on the visually impaired’s device.")
+                    Text("2. Sign up and create an account for them.")
+                    Text("3. In the ‘unique code’ field, enter the code shown to you on your guardian homepage.")
+                    Text("4. Complete the rest of the sign-up process.")
+                }
+                .font(.body)
+                .foregroundColor(.black)
+                .padding(.leading, 10)
+                
+                Text("Congratulations! Your accounts are now linked together.")
+                    .foregroundColor(Color(hexString: "FF6B6B"))
+                    .font(.body)
+                    .padding(.leading, 10)
+            }
+            .padding(.horizontal, 20)
             
-            Text(title)
-                .foregroundColor(Color(hexString: "FF6B6B")) // Set the text color
-                .font(.headline)
-                .fontWeight(.bold)
+            Divider()
+                .background(Color(hexString: "3C6E71"))
+                .padding(.horizontal)
             
+            // Command List Section with Tappable Items
+            VStack(alignment: .leading, spacing: 15) {
+                Text("Help the visually impaired get started with the following commands:")
+                    .font(.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(Color(hexString: "3C6E71"))
+                    .padding(.bottom, 10)
+                
+                CommandListItem(title: "Ain Start", icon: Image(systemName: "play.circle")) {
+                    activeCommandInfo = CommandInfo(message: "Ain will start detecting objects.")
+                }
+                CommandListItem(title: "Ain Stop", icon: Image(systemName: "stop.circle")) {
+                    activeCommandInfo = CommandInfo(message: "Ain will stop all functions.")
+                }
+                CommandListItem(title: "Ain Find Text", icon: Image(systemName: "magnifyingglass.circle")) {
+                    activeCommandInfo = CommandInfo(message: "Ain will look up for text around you.")
+                }
+                CommandListItem(title: "Ain Read Text", icon: Image(systemName: "speaker.wave.2.circle")) {
+                    activeCommandInfo = CommandInfo(message: "Ain will read the text in front of you.")
+                }
+                CommandListItem(title: "Ain Help", icon: Image(systemName: "exclamationmark.triangle.fill")) {
+                    activeCommandInfo = CommandInfo(message: "Ain will send an SOS message to the guardian.")
+                }
+            }
+            .padding(.horizontal, 20)
+            .alert(item: $activeCommandInfo) { info in
+                Alert(title: Text("Command Info"), message: Text(info.message), dismissButton: .default(Text("OK")))
+            }
+
             Spacer()
         }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .background(Color(hexString: "1A3E48")) // Background color of the button
-        .cornerRadius(10)
-        .shadow(radius: 5)
+        .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+        .navigationBarHidden(true)
     }
 }
 
+// Reusable component for Command List Items with on-tap action
+struct CommandListItem: View {
+    var title: String
+    var icon: Image
+    var onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                icon
+                    .resizable()
+                    .frame(width: 24, height: 24)
+                    .foregroundColor(Color(hexString: "3C6E71"))
+                
+                Text(title)
+                    .foregroundColor(Color(hexString: "3C6E71"))
+                    .font(.headline)
+                
+                Spacer()
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(Color(hexString: "E0E0E0"))
+            .cornerRadius(10)
+        }
+        .buttonStyle(PlainButtonStyle()) // Removes button animation for a non-clickable look
+    }
+}
+
+// Preview
 struct CommandView_Previews: PreviewProvider {
     static var previews: some View {
-        NavigationView {  // Embed in NavigationView for proper rendering
+        NavigationView {
             CommandView()
         }
     }

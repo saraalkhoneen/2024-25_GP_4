@@ -45,7 +45,7 @@ struct LocationView: View {
                         .alert(isPresented: $showInfoAlert) {
                             Alert(
                                 title: Text("Info"),
-                                message: Text("The other party should share their location with you for you to safely watch them."),
+                                message: Text("The other user should share their location with you for you to safely watch them."),
                                 dismissButton: .default(Text("OK"))
                             )
                         }
@@ -67,7 +67,7 @@ struct LocationView: View {
 
                         if !hasLinkedVIUser || !isLocationSharingEnabled {
                             VStack {
-                                Text("The VI user’s location is currently unavailable.")
+                                Text("The Visually Impaired’s location is currently unavailable.")
                                     .foregroundColor(.white)
                                     .padding()
                                     .background(Color(hexString: "3C6E71"))
