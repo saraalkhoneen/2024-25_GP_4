@@ -51,96 +51,103 @@ struct GuardianView: View {
     @State private var notifications: [Notification] = []
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            NotificationsView1(notifications: $notifications)
-                .tabItem {
-                    Image(systemName: "bell.fill")
-                    Text("Notifications")
-                }
-                .tag(0)
-                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+        ZStack(alignment: .bottom) {
+            Color.white.edgesIgnoringSafeArea(.all)
             
-            MediaView1()
-                .tabItem {
-                    Image(systemName: "photo.fill")
-                    Text("Media")
-                }
-                .tag(1)
-                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
-
-            NavigationView {
-                VStack {
-                    Image("icon")
-                        .resizable()
-                        .frame(width: 110, height: 110)
-                    
-                    VStack(spacing: 10) {
-                        Text("Hello \(guardianName)")
-                            .font(.title)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.black)
-                            .padding(.top, 20)
-
-                        Text("Your Unique Code: \(uniqueCode)")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding(10)
-                            .background(Color(hexString: "1A3E48"))
-                            .cornerRadius(10)
-                            .padding(.horizontal, 20)
-                            .padding(.top, 20)
+            TabView(selection: $selectedTab) {
+                
+                NotificationsView1(notifications: $notifications)
+                    .tabItem {
+                        Image(systemName: "bell.fill")
+                        Text("Notifications")
                     }
-                    
-                    VStack(spacing: 10) {
-                        Spacer()
-                        Text("Welcome to Ain")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.black)
+                    .tag(0)
+                    .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+                
+                MediaView1()
+                    .tabItem {
+                        Image(systemName: "photo.fill")
+                        Text("Media")
+                    }
+                    .tag(1)
+                    .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+                
+                NavigationView {
+                    VStack {
+                        Image("icon")
+                            .resizable()
+                            .frame(width: 110, height: 110)
                         
-                        Text("Ain helps guardians monitor and assist visually impaired users effectively.")
-                            .multilineTextAlignment(.center)
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 20)
-                        Spacer(minLength: 60)
-                        
-                        NavigationLink(destination: AddUserGuideView1()) {
-                            Text("How to get started")
+                        VStack(spacing: 10) {
+                            Text("Hello \(guardianName)")
+                                .font(.title)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.black)
+                                .padding(.top, 20)
+                            
+                            Text("Your Unique Code: \(uniqueCode)")
+                                .font(.headline)
                                 .foregroundColor(.white)
-                                .padding()
-                                .frame(maxWidth: .infinity)
+                                .padding(10)
                                 .background(Color(hexString: "1A3E48"))
                                 .cornerRadius(10)
-                                .shadow(radius: 5)
+                                .padding(.horizontal, 20)
+                                .padding(.top, 20)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 30)
+                        
+                        VStack(spacing: 10) {
+                            Spacer()
+                            Text("Welcome to Ain")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.black)
+                            
+                            Text("Ain helps guardians monitor and assist visually impaired users effectively.")
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 20)
+                            Spacer(minLength: 60)
+                            
+                            NavigationLink(destination: AddUserGuideView1()) {
+                                Text("How to get started")
+                                    .foregroundColor(.white)
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color(hexString: "1A3E48"))
+                                    .cornerRadius(10)
+                                    .shadow(radius: 5)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 30)
+                        }
                     }
+                    .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+                    .navigationBarBackButtonHidden(true)
                 }
-                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
-                .navigationBarBackButtonHidden(true)
-            }
-            .tabItem {
-                Image(systemName: "house.fill")
-                Text("Home")
-            }
-            .tag(2)
-            
-            LocationView1()
                 .tabItem {
-                    Image(systemName: "location.fill")
-                    Text("Location")
+                    Image(systemName: "house.fill")
+                    Text("Home")
                 }
-                .tag(3)
-                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
-            
-            SettingsView1()
-                .tabItem {
-                    Image(systemName: "gearshape.fill")
-                    Text("Settings")
-                }
-                .tag(4)
-                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+                .tag(2)
+                
+                LocationView()
+                    .tabItem {
+                        Image(systemName: "location.fill")
+                        Text("Location")
+                    }
+                    .tag(3)
+                    .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+                
+                SettingsView()
+                    .tabItem {
+                        Image(systemName: "gearshape.fill")
+                        Text("Settings")
+                    }
+                    .tag(4)
+                    .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+                
+            }
+           
         }
         .onAppear {
             fetchGuardianData()
