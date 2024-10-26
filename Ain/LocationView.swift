@@ -1,6 +1,7 @@
 //  LocationView.swift
 //  Ain
 //  Created by Sara alkhoneen and joud alhussain
+
 import SwiftUI
 import MapKit
 
@@ -11,7 +12,7 @@ struct LocationView: View {
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
     
-    // Dummy properties to simulate the two conditions
+    // Properties to simulate the two conditions
     @State private var hasLinkedVIUser = false // Simulates check for linked VI ID
     @State private var isLocationSharingEnabled = false // Simulates VI's location sharing status
     @State private var showInfoAlert = false // Controls the display of the info alert
@@ -24,7 +25,7 @@ struct LocationView: View {
                     .edgesIgnoringSafeArea(.all)
                 
                 VStack {
-                    // Navigation bar with title
+                    // Navigation bar with title and hint icon
                     HStack {
                         Spacer()
                         
@@ -33,47 +34,49 @@ struct LocationView: View {
                             .fontWeight(.bold)
                             .foregroundColor(Color(hexString: "3C6E71"))
                         
+                        // Hint button with alert
+                        Button(action: {
+                            showInfoAlert.toggle()
+                        }) {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundColor(Color(hexString: "3C6E71"))
+                                .font(.title2)
+                        }
+                        .alert(isPresented: $showInfoAlert) {
+                            Alert(
+                                title: Text("Info"),
+                                message: Text("The other party should share their location with you for you to safely watch them."),
+                                dismissButton: .default(Text("OK"))
+                            )
+                        }
+                        
                         Spacer()
                     }
                     .padding(.top, 10)
                     .padding(.horizontal)
 
-                    // Information message if location sharing is disabled or VI user not linked
-                    if !hasLinkedVIUser || !isLocationSharingEnabled {
-                        HStack(spacing: 8) {
-                            Text("The VI user’s location is currently unavailable.")
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color(hexString: "3C6E71"))
-                                .cornerRadius(10)
-                            
-                            // Hint button with alert
-                            Button(action: {
-                                showInfoAlert.toggle()
-                            }) {
-                                Image(systemName: "exclamationmark.circle")
-                                    .foregroundColor(Color(hexString: "3C6E71"))
-                                    .font(.title2)
-                            }
-                            .alert(isPresented: $showInfoAlert) {
-                                Alert(
-                                    title: Text("Info"),
-                                    message: Text("The other party should share their location with you for you to safely watch them."),
-                                    dismissButton: .default(Text("OK"))
-                                )
-                            }
+                    // Grayed-out map with error message if location sharing is disabled or VI user not linked
+                    ZStack {
+                        Map(coordinateRegion: $region, annotationItems: hasLinkedVIUser && isLocationSharingEnabled ? [Marker(coordinate: region.center)] : []) { marker in
+                            MapMarker(coordinate: marker.coordinate, tint: .orange)
                         }
+                        .frame(height: 300)
+                        .cornerRadius(15)
                         .padding(.horizontal, 20)
-                    }
+                        .colorMultiply(hasLinkedVIUser && isLocationSharingEnabled ? Color.clear : Color.gray) // Gray overlay for unavailable state
 
-                    // Map placeholder
-                    Map(coordinateRegion: $region, annotationItems: hasLinkedVIUser && isLocationSharingEnabled ? [Marker(coordinate: region.center)] : []) { marker in
-                        MapMarker(coordinate: marker.coordinate, tint: .orange)
+                        if !hasLinkedVIUser || !isLocationSharingEnabled {
+                            VStack {
+                                Text("The VI user’s location is currently unavailable.")
+                                    .foregroundColor(.white)
+                                    .padding()
+                                    .background(Color(hexString: "3C6E71"))
+                                    .cornerRadius(10)
+                            }
+                            .padding(.horizontal, 20)
+                        }
                     }
-                    .frame(height: 300)
-                    .cornerRadius(15)
-                    .padding(.horizontal, 20)
-                    .padding(.top, hasLinkedVIUser && isLocationSharingEnabled ? 0 : 10)
+                    .padding(.top, 10)
                     
                     Spacer()
                 }
@@ -88,7 +91,6 @@ struct Marker: Identifiable {
     let id = UUID()
     var coordinate: CLLocationCoordinate2D
 }
-
 
 struct LocationView_Previews: PreviewProvider {
     static var previews: some View {
