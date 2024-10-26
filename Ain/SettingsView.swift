@@ -5,200 +5,178 @@ import FirebaseFirestore
 
 struct SettingsView: View {
     @State private var isShowingSignOutAlert = false
-    @State private var isPushNotificationsEnabled = true
-    @State private var userName: String = "Loading..." // Placeholder for Firebase data
+    @State private var userName: String = "Loading..."
     @State private var showAlert = false
     @State private var alertMessage = ""
-    @Environment(\.presentationMode) var presentationMode // For navigating back after sign-out
+    @State private var showPrivacyPolicy = false
+    @State private var showTermsConditions = false
+    @State private var showAboutUs = false
+    @State private var showChangePassword = false
+    @Environment(\.presentationMode) var presentationMode
 
     var body: some View {
         NavigationView {
             ZStack {
-                // Background color (hex 3C6E71)
-                Color(hexString: "3C6E71")
+                Color(hexString: "F2F2F2")
                     .edgesIgnoringSafeArea(.all)
                 
                 VStack(spacing: 20) {
-                    // Top background with the settings title
                     HStack {
                         Spacer()
                         Text("Settings")
-                            .font(.largeTitle)
-                            .foregroundColor(.white)
+                            .font(.title2)
+                            .foregroundColor(Color(hexString: "3C6E71"))
                             .fontWeight(.bold)
-                            .padding(.top, 80)
+                            .padding(.top, 50)
                         Spacer()
                     }
-                    .edgesIgnoringSafeArea(.top)
                     
-                    // White box container for all content
-                    VStack(spacing: 20) {
-                        // Profile section
-                        VStack {
-                            HStack {
-                                Image(systemName: "person.circle.fill")
-                                    .resizable()
-                                    .frame(width: 70, height: 70)
-                                    .clipShape(Circle())
-                                    .padding(.leading)
-                                
-                                // User name fetched from Firebase Firestore
-                                Text(userName)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .padding(.leading, 10)
-                                
-                                Spacer()
-                            }
-                            .padding(.vertical)
+                    VStack {
+                        HStack {
+                            Image(systemName: "person.circle.fill")
+                                .resizable()
+                                .frame(width: 70, height: 70)
+                                .clipShape(Circle())
+                                .foregroundColor(Color(hexString: "3C6E71"))
+                            Text(userName)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.leading, 10)
+                            Spacer()
                         }
-                        .background(Color.white)
+                        .padding()
+                        .background(Color(hexString: "F2F2F2"))
                         .cornerRadius(15)
                         .shadow(radius: 2)
                         .padding(.horizontal)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("Account Settings")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .padding(.leading)
                         
-                        // Account Settings section
-                        VStack(alignment: .leading, spacing: 15) {
-                            Text("Account Settings")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                                .padding(.leading)
-                            
-                            NavigationLink(destination: ChangePasswordView()) {
-                                HStack {
-                                    Text("Change password")
-                                        .foregroundColor(.black)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.gray)
-                                }
-                                .padding()
-                                .background(Color.white)
-                                .cornerRadius(10)
-                                .shadow(radius: 1)
-                            }
-                            .padding(.horizontal)
-                            
-                            Toggle(isOn: $isPushNotificationsEnabled) {
-                                Text("Push notifications")
-                                    .foregroundColor(.black)
-                            }
-                            .padding()
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .shadow(radius: 1)
-                            .padding(.horizontal)
-                        }
-                        .padding(.top)
-                        
-                        // More section
-                        VStack(alignment: .leading, spacing: 15) {
-                            Text("More")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                                .padding(.leading)
-                            
-                            NavigationLink(destination: AboutUsView()) {
-                                HStack {
-                                    Text("About us")
-                                        .foregroundColor(.black)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.gray)
-                                }
-                                .padding()
-                                .background(Color.white)
-                                .cornerRadius(10)
-                                .shadow(radius: 1)
-                            }
-                            .padding(.horizontal)
-                            
-                            NavigationLink(destination: PrivacyPolicyView()) {
-                                HStack {
-                                    Text("Privacy policy")
-                                        .foregroundColor(.black)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.gray)
-                                }
-                                .padding()
-                                .background(Color.white)
-                                .cornerRadius(10)
-                                .shadow(radius: 1)
-                            }
-                            .padding(.horizontal)
-                            
-                            NavigationLink(destination: TermsConditionsView()) {
-                                HStack {
-                                    Text("Terms and conditions")
-                                        .foregroundColor(.black)
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .foregroundColor(.gray)
-                                }
-                                .padding()
-                                .background(Color.white)
-                                .cornerRadius(10)
-                                .shadow(radius: 1)
-                            }
-                            .padding(.horizontal)
-                        }
-                        .padding(.top)
-                        
-                        Spacer()
-                        
-                        // Sign out button
-                        Button(action: {
-                            isShowingSignOutAlert = true
-                        }) {
+                        Button(action: { showChangePassword = true }) {
                             HStack {
-                                Text("Sign out")
-                                    .foregroundColor(.red)
+                                Text("Change password")
+                                    .foregroundColor(.black)
                                 Spacer()
-                                Image(systemName: "arrowshape.turn.up.left.fill")
-                                    .foregroundColor(.red)
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
                             }
                             .padding()
-                            .background(Color.white)
+                            .background(Color(hexString: "F2F2F2"))
                             .cornerRadius(10)
                             .shadow(radius: 1)
-                            .padding(.horizontal)
                         }
-                        .alert(isPresented: $isShowingSignOutAlert) {
-                            Alert(
-                                title: Text("Are you sure you want to sign out?"),
-                                message: Text("You will be logged out of your account."),
-                                primaryButton: .destructive(Text("Sign out")) {
-                                    signOut()
-                                },
-                                secondaryButton: .cancel()
-                            )
+                        .padding(.horizontal)
+                        .sheet(isPresented: $showChangePassword) {
+                            ChangePasswordView()
+                        }
+                    }
+                    .padding(.top)
+                    
+                    VStack(alignment: .leading, spacing: 15) {
+                        Text("More")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .padding(.leading)
+                        
+                        Button(action: { showAboutUs.toggle() }) {
+                            HStack {
+                                Text("About us")
+                                    .foregroundColor(.black)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(Color(hexString: "F2F2F2"))
+                            .cornerRadius(10)
+                            .shadow(radius: 1)
+                        }
+                        .padding(.horizontal)
+                        .sheet(isPresented: $showAboutUs) {
+                            AboutUsView()
                         }
                         
-                        Spacer()
+                        Button(action: { showPrivacyPolicy.toggle() }) {
+                            HStack {
+                                Text("Privacy policy")
+                                    .foregroundColor(.black)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(Color(hexString: "F2F2F2"))
+                            .cornerRadius(10)
+                            .shadow(radius: 1)
+                        }
+                        .padding(.horizontal)
+                        .sheet(isPresented: $showPrivacyPolicy) {
+                            PrivacyPolicyView()
+                        }
+                        
+                        Button(action: { showTermsConditions.toggle() }) {
+                            HStack {
+                                Text("Terms and conditions")
+                                    .foregroundColor(.black)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(Color(hexString: "F2F2F2"))
+                            .cornerRadius(10)
+                            .shadow(radius: 1)
+                        }
+                        .padding(.horizontal)
+                        .sheet(isPresented: $showTermsConditions) {
+                            TermsConditionsView()
+                        }
                     }
-                    .padding()
-                    .background(Color.white) // White background for the box
-                    .cornerRadius(15)
-                    .shadow(radius: 10)
-                    .padding()
+                    .padding(.top)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        isShowingSignOutAlert = true
+                    }) {
+                        HStack {
+                            Text("Sign out")
+                                .foregroundColor(.red)
+                            Spacer()
+                            Image(systemName: "arrowshape.turn.up.left.fill")
+                                .foregroundColor(.red)
+                        }
+                        .padding()
+                        .background(Color(hexString: "F2F2F2"))
+                        .cornerRadius(10)
+                        .shadow(radius: 1)
+                        .padding(.horizontal)
+                    }
+                    .alert(isPresented: $isShowingSignOutAlert) {
+                        Alert(
+                            title: Text("Are you sure you want to sign out?"),
+                            message: Text("You will be logged out of your account."),
+                            primaryButton: .destructive(Text("Sign out")) {
+                                signOut()
+                            },
+                            secondaryButton: .cancel()
+                        )
+                    }
+                    
+                    Spacer()
                 }
+                .padding(.top, -20)
             }
-            .navigationBarItems(leading: HStack {
-                Button(action: {
-                    // Action to go back to the previous view
-                }) {
-                    HStack {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(.white)
-                        Text("Back")
-                            .foregroundColor(.white)
-                    }
-                }
-            })
-            .navigationBarTitle("", displayMode: .inline) // Hides the default title
+            .navigationBarItems(leading: EmptyView())
+            .navigationBarBackButtonHidden(true)
+            .navigationBarTitle("", displayMode: .inline)
             .onAppear {
-                fetchUserData() // Fetch user data when the view appears
+                fetchUserData()
             }
             .alert(isPresented: $showAlert) {
                 Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
@@ -206,20 +184,13 @@ struct SettingsView: View {
         }
     }
     
-    // Fetch user's first and last name from Firestore
     private func fetchUserData() {
         let db = Firestore.firestore()
-
-        // Fetching the currently logged-in user ID
         if let user = Auth.auth().currentUser {
-            let userId = user.uid // Get the unique ID of the currently logged-in user
-
-            db.collection("Guardian").document(userId).getDocument { (document, error) in
+            db.collection("Guardian").document(user.uid).getDocument { (document, error) in
                 if let document = document, document.exists {
                     let firstName = document.data()?["firstName"] as? String ?? ""
                     let lastName = document.data()?["lastName"] as? String ?? ""
-                    
-                    // Combine first and last names
                     userName = "\(firstName) \(lastName)"
                 } else {
                     userName = "Error fetching name: \(error?.localizedDescription ?? "Unknown error")"
@@ -230,11 +201,9 @@ struct SettingsView: View {
         }
     }
     
-    // Sign out function using Firebase Authentication
     func signOut() {
         do {
             try Auth.auth().signOut()
-            // After successful sign-out, navigate back to the previous screen
             presentationMode.wrappedValue.dismiss()
         } catch let signOutError as NSError {
             print("Error signing out: %@", signOutError)
@@ -244,32 +213,105 @@ struct SettingsView: View {
     }
 }
 
-// Dummy views for navigation destinations
+// Change Password View
 struct ChangePasswordView: View {
+    @State private var email: String = ""
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+
     var body: some View {
-        Text("Change Password View")
-            .font(.largeTitle)
+        VStack(spacing: 20) {
+            Text("Change Password")
+                .font(.title2)
+                .fontWeight(.bold)
+                .padding(.top, 30)
+
+            TextField("Email", text: $email)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding()
+
+            Button(action: resetPassword) {
+                Text("Send Reset Password Email")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(hexString: "D95F4B"))
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+            }
+            .padding(.horizontal)
+            
+            Spacer()
+        }
+        .padding()
+        .alert(isPresented: $showAlert) {
+            Alert(title: Text("Alert"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+        }
+    }
+    
+    func resetPassword() {
+        guard !email.isEmpty else {
+            alertMessage = "Please enter your email."
+            showAlert = true
+            return
+        }
+
+        Auth.auth().sendPasswordReset(withEmail: email) { error in
+            if let error = error {
+                alertMessage = error.localizedDescription
+            } else {
+                alertMessage = "Password reset email sent. Please check your inbox."
+            }
+            showAlert = true
+        }
     }
 }
 
+// Additional Views
 struct AboutUsView: View {
     var body: some View {
-        Text("About Us View")
-            .font(.largeTitle)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 15) {
+                Text("About Us")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .padding(.top, 20)
+                Text("This is the About Us page where information about the application and its purpose is shared. Additional details on the team, mission, and vision can be added here.")
+                    .padding(.horizontal)
+            }
+            .padding()
+        }
     }
 }
 
 struct PrivacyPolicyView: View {
     var body: some View {
-        Text("Privacy Policy View")
-            .font(.largeTitle)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 15) {
+                Text("Privacy Policy")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .padding(.top, 20)
+                Text("The privacy policy outlines how user information is collected, used, and safeguarded. It provides transparency and details on data privacy practices.")
+                    .padding(.horizontal)
+            }
+            .padding()
+        }
     }
 }
 
 struct TermsConditionsView: View {
     var body: some View {
-        Text("Terms and Conditions View")
-            .font(.largeTitle)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 15) {
+                Text("Terms and Conditions")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .padding(.top, 20)
+                Text("These are the terms and conditions for using the application. Users are expected to abide by the outlined rules and regulations.")
+                    .padding(.horizontal)
+            }
+            .padding()
+        }
     }
 }
 
