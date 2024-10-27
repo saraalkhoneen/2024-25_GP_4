@@ -152,8 +152,7 @@ struct GuardianView: View {
         }
         .onAppear {
             fetchGuardianData()
-            checkFirstTimeLogin() // Check first login after signup
-            loadNotificationsFromFirestore() // Load notifications from Firestore on app launch
+
         }
     }
     
@@ -172,73 +171,104 @@ struct GuardianView: View {
         }
     }
 
-    // Check if this is the first login after sign-up
-    private func checkFirstTimeLogin() {
-        let hasLoggedInAfterSignUp = UserDefaults.standard.bool(forKey: firstTimeLoginKey)
-        if !hasLoggedInAfterSignUp {
-            addNotification(title: "Welcome!", details: "You've successfully logged in after signing up.")
-            UserDefaults.standard.set(true, forKey: firstTimeLoginKey)
-        }
-    }
-
-    // Add a notification and save it to Firestore
-    private func addNotification(title: String, details: String) {
-        let newNotification = Notification(title: title, details: details, date: Date())
-        notifications.append(newNotification)
-        saveNotificationToFirestore(newNotification) // Save to Firestore
-    }
-
-    // Save a notification to Firestore
-    private func saveNotificationToFirestore(_ notification: Notification) {
-        if let userId = Auth.auth().currentUser?.uid {
-            db.collection("Guardian").document(userId).collection("Notifications").document(notification.id).setData(notification.toDictionary()) { error in
-                if let error = error {
-                    print("Error saving notification: \(error)")
+// Placeholder views
+struct MediaView1: View {
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                Text("Media")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .padding(.top, 20)
+                    .foregroundColor(Color(hexString: "3C6E71"))
+                
+                Spacer()
+                
+                // Message indicating no media available
+                VStack(spacing: 10) {
+                    Image(systemName: "photo.on.rectangle.angled")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 80, height: 80)
+                        .foregroundColor(.gray)
+                    
+                    Text("No videos or pictures yet")
+                        .font(.headline)
+                        .foregroundColor(.gray)
+                    
+                    Text("When the media uploaded, it will appear here.")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
                 }
+                
+                Spacer()
             }
+            .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
         }
     }
-
-    // Load notifications from Firestore
-    private func loadNotificationsFromFirestore() {
-        guard let userId = Auth.auth().currentUser?.uid else { return }
-        
-        db.collection("Guardian").document(userId).collection("Notifications").getDocuments { (snapshot, error) in
-            if let error = error {
-                print("Error loading notifications: \(error.localizedDescription)")
-                return
-            }
-            if let documents = snapshot?.documents {
-                notifications = documents.compactMap { Notification(dictionary: $0.data()) }
-            }
-        }
-    }
-}
-
-// Notifications View
+    }}
+struct AddUserGuideView1: View { var body: some View { Text("Guide on Adding a Visually Impaired User") } }
+struct LocationView1: View { var body: some View { Text("Location Content") } }
+struct SettingsView1: View { var body: some View { Text("Settings Content") } }
 struct NotificationsView1: View {
     @Binding var notifications: [Notification]
 
     var body: some View {
         NavigationView {
-            List(notifications) { notification in
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(notification.title)
-                        .font(.headline)
-                        .foregroundColor(.black)
-                    
-                    Text(notification.details)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                    
-                    Text("Date: \(formattedDate(notification.date))")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+            VStack(spacing: 20) {
+                Text("Notifications")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .padding(.top, 20)
+                    .foregroundColor(Color(hexString: "3C6E71"))
+                
+                Spacer()
+                
+                if notifications.isEmpty {
+                    // Display placeholder when there are no notifications
+                    VStack(spacing: 10) {
+                        Image(systemName: "bell.slash")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                            .foregroundColor(.gray)
+                        
+                        Text("No notifications yet")
+                            .font(.headline)
+                            .foregroundColor(.gray)
+                        
+                        Text("When new notifications arrive, they will appear here.")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                    }
+                    .padding(.top, 50)
+                } else {
+                    // Display list of notifications if there are any
+                    List(notifications) { notification in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(notification.title)
+                                .font(.headline)
+                                .foregroundColor(.black)
+                            
+                            Text(notification.details)
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            
+                            Text("Date: \(formattedDate(notification.date))")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.vertical, 5)
+                    }
                 }
-                .padding(.vertical, 5)
+                
+                Spacer()
             }
-            .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
-            .navigationTitle("Notifications")
+            
         }
     }
     
@@ -250,13 +280,10 @@ struct NotificationsView1: View {
     }
 }
 
-// Placeholder views
-struct MediaView1: View { var body: some View { Text("Media Content") } }
-struct AddUserGuideView1: View { var body: some View { Text("Guide on Adding a Visually Impaired User") } }
-struct LocationView1: View { var body: some View { Text("Location Content") } }
-struct SettingsView1: View { var body: some View { Text("Settings Content") } }
 
-struct GuardianView_Previews: PreviewProvider {
+
+
+    struct GuardianView_Previews: PreviewProvider {
     static var previews: some View {
         GuardianView()
     }
