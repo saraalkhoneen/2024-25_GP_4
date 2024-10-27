@@ -72,53 +72,57 @@ struct StepByStepSignUpView: View {
     @State private var signUpSuccess = false
 
     
+   
     var body: some View {
-            VStack(spacing: 20) {
-                if step == 1 {
-                    // Step 1: First Name and Last Name with labels
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("First Name")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        CustomTextField(placeholder: "First Name", text: $firstName)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Last Name")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        CustomTextField(placeholder: "Last Name", text: $lastName)
-                    }
-                    
+        VStack(spacing: 20) {
+            if step == 1 {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("First Name")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    CustomTextField(placeholder: "First Name", text: $firstName)
+                }
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Last Name")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    CustomTextField(placeholder: "Last Name", text: $lastName)
+                }
+                
+                HStack(spacing: 10) {
+                    Spacer() // Pushes "Next" to the right
                     Button(action: proceedToNextStep) {
-                        HStack{
+                        HStack {
                             Text("Next")
                             Image(systemName: "chevron.right")
                         }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(hexString: "D95F4B"))
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(hexString: "D95F4B"))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
                     }
-                    .padding(.horizontal)
                     .disabled(isLoading)
-                    
-                } else if step == 2 {
-                    // Step 2: Email and Confirm Email with labels
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Email")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        CustomTextField(placeholder: "Email", text: $email)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Confirm Email")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
-                    }
+                }
+                .padding(.horizontal)
+                
+            } else if step == 2 {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Email")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    CustomTextField(placeholder: "Email", text: $email)
+                }
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Confirm Email")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
+                }
+                
+                HStack(spacing: 10) {
                     Button(action: { step = 1 }) {
                         HStack {
                             Image(systemName: "chevron.left")
@@ -131,62 +135,65 @@ struct StepByStepSignUpView: View {
                         .cornerRadius(12)
                     }
                     .disabled(isLoading)
+                    
                     Button(action: validateEmail) {
-                        HStack{
+                        HStack {
                             Text("Next")
                             Image(systemName: "chevron.right")
                         }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(hexString: "D95F4B"))
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(hexString: "D95F4B"))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
                     }
-                    .padding(.horizontal)
                     .disabled(isLoading)
-                    
-                } else if step == 3 {
-                    // Step 3: Password and Confirm Password with labels
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Password")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        CustomTextField(placeholder: "Password", text: $password, isSecure: true)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Confirm Password")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
-                    }
+                }
+                .padding(.horizontal)
+                
+            } else if step == 3 {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Password")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+                }
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Confirm Password")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                    CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
+                }
+                
+                HStack(spacing: 10) {
                     Button(action: { step = 2 }) {
-                        HStack{
-                            Text("Back")
+                        HStack {
                             Image(systemName: "chevron.left")
+                            Text("Back")
                         }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(hexString: "5a5a5a"))
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(hexString: "5a5a5a"))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
                     }
                     .disabled(isLoading)
+                    
                     Button(action: register) {
-                        HStack{
-                            Text("Sign Up")
-                            Image(systemName: "chevron.right")
-                        }
+                        Text("Sign Up")
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color(hexString: "D95F4B"))
                             .foregroundColor(.white)
                             .cornerRadius(12)
                     }
-                    .padding(.horizontal)
                     .disabled(isLoading)
+                }
+                .padding(.horizontal)
             }
         }
+
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Success"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
