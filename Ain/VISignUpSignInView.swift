@@ -1,9 +1,6 @@
 // SignUpSignInView.swift
 // Ain
-// Created by sara alkhoneen and joud
-// SignUpSignInView.swift
-// Ain
-// Created by sara alkhoneen and joud
+// Created by sara alkhoneen and joud alhussain
 import SwiftUI
 import Firebase
 import FirebaseAuth
@@ -71,7 +68,6 @@ struct ViStepByStepSignUpView: View {
     @State private var alertMessage = ""
     @State private var isLoading = false
     
-    
     var body: some View {
         VStack(spacing: 20) {
             if step == 1 {
@@ -79,7 +75,10 @@ struct ViStepByStepSignUpView: View {
                 CustomTextField(placeholder: "Last Name", text: $lastName)
                 
                 Button(action: proceedToStep2) {
-                    Text("Next")
+                    HStack{
+                        Text("Next")
+                        Image(systemName: "chevron.right")
+                    }
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color(hexString: "D95F4B"))
@@ -89,61 +88,76 @@ struct ViStepByStepSignUpView: View {
                 .padding(.horizontal)
                 .disabled(isLoading)
                 
-            } else if step == 2 {
+            }  else if step == 2 {
                 CustomTextField(placeholder: "Email", text: $email)
                 CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
                 
-                Button(action: {
-                    if validateEmails() {
-                        step = 3
+                HStack(spacing: 10) {
+                    Button(action: { step = 1 }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(hexString: "5a5a5a"))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
                     }
-                }) {
-                    Text("Next")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
+                    .disabled(isLoading)
+                    
+                    Button(action: {
+                        if validateEmails() {
+                            step = 3
+                        }
+                    }) {
+                        HStack{
+                            Text("Next")
+                            Image(systemName: "chevron.right")
+                        }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "D95F4B"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
                 }
                 .padding(.horizontal)
-                .disabled(isLoading)
-        
-                Button(action: { step = 1 }) {
-                    Text("Back")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(isLoading)
                 
             } else if step == 3 {
                 CustomTextField(placeholder: "Password", text: $password, isSecure: true)
                 CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
                 CustomTextField(placeholder: "Unique Code", text: $uniqueCode)
                 
-                Button(action: registerUser) {
-                    Text("Sign Up")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
+                HStack(spacing: 10) {
+                    Button(action: { step = 2 }) {
+                        HStack{
+                            Text("Back")
+                            Image(systemName: "chevron.left")
+                        }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "5a5a5a"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
+                    
+                    Button(action: registerUser) {
+                        HStack{
+                            Text("Sign Up")
+                            Image(systemName: "chevron.right")
+                        }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "D95F4B"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
                 }
                 .padding(.horizontal)
-                .disabled(isLoading)
-                Button(action: { step = 2 }) {
-                    Text("Back")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(isLoading)
             }
         }
         .alert(isPresented: $showAlert) {
@@ -173,6 +187,7 @@ struct ViStepByStepSignUpView: View {
             step = 2
         }
     }
+    
     
     private func validateEmails() -> Bool {
         guard !email.isEmpty, !confirmEmail.isEmpty else {
