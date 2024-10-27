@@ -16,7 +16,7 @@ struct CommandView: View {
             VStack(alignment: .leading, spacing: 20) {
                 // Page Title with Info Hint
                 HStack {
-                    Text("Command List")
+                    Text("Start with Ain")
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(Color(hexString: "3C6E71"))
@@ -57,10 +57,10 @@ struct CommandView: View {
                         .multilineTextAlignment(.leading)
                     
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("1. Download Ain on the visually impaired’s device.")
-                        Text("2. Sign up and create an account for them.")
-                        Text("3. In the ‘unique code’ field, enter the code shown to you on your guardian homepage.")
-                        Text("4. Complete the rest of the sign-up process.")
+                        Text("1. Download Ain on their device.")
+                        Text("⁠2. Create an account for them.")
+                        Text("3. In the ‘unique code’ field, enter the code shown in your homepage.")
+                        Text("4. Complete the rest of the sign up process.")
                     }
                     .font(.body)
                     .foregroundColor(.black)
