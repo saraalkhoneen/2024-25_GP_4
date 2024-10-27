@@ -49,6 +49,7 @@ struct GuardianView: View {
     @State private var guardianName: String = ""
     @State private var selectedTab: Int = 2
     @State private var notifications: [Notification] = []
+    @State private var isShowingCommandView = false // State to control sheet presentation
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -108,18 +109,24 @@ struct GuardianView: View {
                                 .padding(.horizontal, 20)
                             Spacer(minLength: 60)
                             
-                            NavigationLink(destination: CommandView()) {
-                                Text("How to get started")
-                                    .foregroundColor(.white)
-                                    .padding()
-                                    .frame(maxWidth: .infinity)
-                                    .background(Color(hexString: "1A3E48"))
-                                    .cornerRadius(10)
-                                    .shadow(radius: 5)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 30)
-                        }
+                            // Button to open CommandView in a sheet
+                                                      Button(action: {
+                                                          isShowingCommandView = true
+                                                      }) {
+                                                          Text("How to get started")
+                                                              .foregroundColor(.white)
+                                                              .padding()
+                                                              .frame(maxWidth: .infinity)
+                                                              .background(Color(hexString: "1A3E48"))
+                                                              .cornerRadius(10)
+                                                              .shadow(radius: 5)
+                                                      }
+                                                      .padding(.horizontal, 20)
+                                                      .padding(.bottom, 30)
+                                                      .sheet(isPresented: $isShowingCommandView) {
+                                                          CommandView()
+                                                      }
+                                                  }
                         .navigationBarBackButtonHidden(true)
                     }
                     .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
