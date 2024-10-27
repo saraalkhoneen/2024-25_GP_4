@@ -138,16 +138,26 @@ struct StepByStepSignUpView: View {
     }
     
     private func proceedToNextStep() {
-        if firstName.isEmpty {
+        if firstName.isEmpty && lastName.isEmpty {
+            alertMessage = "Please enter both your first and last names."
+            showAlert = true
+        } else if firstName.isEmpty {
             alertMessage = "Please enter your first name."
+            showAlert = true
+        } else if firstName.count < 2 {
+            alertMessage = "First name must be at least 2 letters."
             showAlert = true
         } else if lastName.isEmpty {
             alertMessage = "Please enter your last name."
+            showAlert = true
+        } else if lastName.count < 2 {
+            alertMessage = "Last name must be at least 2 letters."
             showAlert = true
         } else {
             step = 2
         }
     }
+
 
     private func validateEmail() {
         guard !email.isEmpty, !confirmEmail.isEmpty else {
