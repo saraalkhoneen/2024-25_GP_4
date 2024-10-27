@@ -1,6 +1,9 @@
 // SignUpSignInView.swift
 // Ain
-// Created by sara alkhoneen and joud 
+// Created by sara alkhoneen and joud
+// SignUpSignInView.swift
+// Ain
+// Created by sara alkhoneen and joud
 import SwiftUI
 import Firebase
 import FirebaseAuth
@@ -89,7 +92,11 @@ struct ViStepByStepSignUpView: View {
                 CustomTextField(placeholder: "Email", text: $email)
                 CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
                 
-                Button(action: validateEmails) {
+                Button(action: {
+                    if validateEmails() {
+                        step = 3
+                    }
+                }) {
                     Text("Next")
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -124,7 +131,7 @@ struct ViStepByStepSignUpView: View {
         .overlay(loadingOverlay)
     }
     
-    private func proceedToStep2(){
+    private func proceedToStep2() {
         if firstName.isEmpty && lastName.isEmpty {
             alertMessage = "Please enter both your first and last names."
             showAlert = true
@@ -144,22 +151,22 @@ struct ViStepByStepSignUpView: View {
             step = 2
         }
     }
-
     
-    private func validateEmails() {
+    private func validateEmails() -> Bool {
         guard !email.isEmpty, !confirmEmail.isEmpty else {
             alertMessage = "Please fill in both email fields."
             showAlert = true
-            return
+            return false
         }
         
         guard email == confirmEmail, isValidEmail(email) else {
             alertMessage = email == confirmEmail ? "Invalid email format." : "Emails do not match."
             showAlert = true
-            return
+            return false
         }
         
         checkEmailExists(email)
+        return true
     }
     
     private func checkEmailExists(_ email: String) {
@@ -186,48 +193,61 @@ struct ViStepByStepSignUpView: View {
             showAlert = true
             return
         }
-        
-        // Validate email fields
-        validateEmails()
-        
-        // Validate password with detailed cases
-        if !isPasswordLongEnough(password) {
+
+        guard validateEmails() else { return }
+
+        guard !password.isEmpty, !confirmPassword.isEmpty else {
+            alertMessage = "Please fill in both password fields."
+            showAlert = true
+            return
+        }
+
+        guard password == confirmPassword else {
+            alertMessage = "The passwords do not match."
+            showAlert = true
+            return
+        }
+
+        guard password.count >= 8 else {
             alertMessage = "Password must be at least 8 characters long."
             showAlert = true
             return
         }
-        
-        if !containsUppercase(password) {
+
+        let uppercaseRegex = ".*[A-Z]+.*"
+        guard NSPredicate(format: "SELF MATCHES %@", uppercaseRegex).evaluate(with: password) else {
             alertMessage = "Password must include at least one uppercase letter."
             showAlert = true
             return
         }
-        
-        if !containsLowercase(password) {
+
+        let lowercaseRegex = ".*[a-z]+.*"
+        guard NSPredicate(format: "SELF MATCHES %@", lowercaseRegex).evaluate(with: password) else {
             alertMessage = "Password must include at least one lowercase letter."
             showAlert = true
             return
         }
-        
-        if !containsNumber(password) {
+
+        let numberRegex = ".*[0-9]+.*"
+        guard NSPredicate(format: "SELF MATCHES %@", numberRegex).evaluate(with: password) else {
             alertMessage = "Password must include at least one number."
             showAlert = true
             return
         }
-        
-        if !containsSpecialCharacter(password) {
+
+        let specialCharacterRegex = ".*[!@#$%^&*.]+.*"
+        guard NSPredicate(format: "SELF MATCHES %@", specialCharacterRegex).evaluate(with: password) else {
             alertMessage = "Password must include at least one special character."
             showAlert = true
             return
         }
-        // Check if unique code is provided
-          guard !uniqueCode.isEmpty else {
-              alertMessage = "Please enter your unique code."
-              showAlert = true
-              return
-          }
 
-        // Check unique code before continuing
+        guard !uniqueCode.isEmpty else {
+            alertMessage = "Please enter your unique code."
+            showAlert = true
+            return
+        }
+
         checkUniqueCodeExists(uniqueCode)
     }
 
@@ -248,7 +268,7 @@ struct ViStepByStepSignUpView: View {
                 }
             }
     }
-    
+
     private func performUserRegistration() {
         isLoading = true
         Auth.auth().createUser(withEmail: email, password: password) { result, error in
@@ -268,7 +288,7 @@ struct ViStepByStepSignUpView: View {
             }
         }
     }
-    
+
     private func saveUserToFirestore(user: FirebaseAuth.User) {
         let db = Firestore.firestore()
         let visuallyImpairedData = [
@@ -320,31 +340,6 @@ struct ViStepByStepSignUpView: View {
         return NSPredicate(format: "SELF MATCHES %@", emailRegex).evaluate(with: email)
     }
 
-    // Helper functions for specific password requirements
-    private func isPasswordLongEnough(_ password: String) -> Bool {
-        return password.count >= 8
-    }
-
-    private func containsUppercase(_ password: String) -> Bool {
-        let uppercaseRegex = ".[A-Z]+."
-        return NSPredicate(format: "SELF MATCHES %@", uppercaseRegex).evaluate(with: password)
-    }
-
-    private func containsLowercase(_ password: String) -> Bool {
-        let lowercaseRegex = ".[a-z]+."
-        return NSPredicate(format: "SELF MATCHES %@", lowercaseRegex).evaluate(with: password)
-    }
-
-    private func containsNumber(_ password: String) -> Bool {
-        let numberRegex = ".[0-9]+."
-        return NSPredicate(format: "SELF MATCHES %@", numberRegex).evaluate(with: password)
-    }
-
-    private func containsSpecialCharacter(_ password: String) -> Bool {
-        let specialCharacterRegex = ".[!@#$%^&(),.?\":{}|<>]+.*"
-        return NSPredicate(format: "SELF MATCHES %@", specialCharacterRegex).evaluate(with: password)
-    }
-
     private var loadingOverlay: some View {
         Group {
             if isLoading {
@@ -357,7 +352,6 @@ struct ViStepByStepSignUpView: View {
         }
     }
 }
-
 
 // Sign In View
 struct ViSignInView: View {
@@ -406,43 +400,64 @@ struct ViSignInView: View {
         let db = Firestore.firestore()
         
         db.collection("Guardian").whereField("uniqueCode", isEqualTo: uniqueCode.uppercased()).getDocuments { snapshot, error in
-            isLoading = false
+            self.isLoading = false
             
             if let error = error {
-                alertMessage = "issue in checking your unique code. Please try again later. Error: \(error.localizedDescription)"
-                showAlert = true
-            } else if let documents = snapshot?.documents, !documents.isEmpty {
+                self.alertMessage = "Issue in checking your unique code. Please try again later. Error: \(error.localizedDescription)"
+                self.showAlert = true
+                return
+            }
+            
+            guard let documents = snapshot?.documents, !documents.isEmpty else {
+                self.alertMessage = "The unique code entered is invalid."
+                self.showAlert = true
+                return
+            }
+            
+            self.isLoading = true
+            Auth.auth().signIn(withEmail: self.email, password: self.password) { authResult, error in
+                self.isLoading = false
                 
-                Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
-                    isLoading = false
-                    
-                    if let error = error {
-                        switch AuthErrorCode(rawValue: error._code) {
-                        case .wrongPassword:
-                            alertMessage = "The password is incorrect."
-                        case .invalidEmail:
-                            alertMessage = "The email address is invalid."
-                        case .userNotFound:
-                            alertMessage = "No account found for this email."
-                        default:
-                            alertMessage = "Sign-in failed due to an unexpected error: \(error.localizedDescription). Please try again."
-                        }
-                        showAlert = true
-                    } else if let user = authResult?.user, !user.isEmailVerified {
-                        alertMessage = "Your email is not verified. Please check your inbox."
-                        showAlert = true
-                    } else {
-                        navigateToMainView = true
-                    }
+                if let error = error {
+                    self.handleAuthError(error)
+                    return
                 }
                 
-            } else {
-                alertMessage = "The unique code entered is invalid."
-                showAlert = true
+                guard let user = authResult?.user else {
+                    self.alertMessage = "Unexpected error: User not found after successful sign-in."
+                    self.showAlert = true
+                    return
+                }
+                
+                guard user.isEmailVerified else {
+                    self.alertMessage = "Your email is not verified. Please check your inbox."
+                    self.showAlert = true
+                    return
+                }
+                
+                self.navigateToMainView = true
             }
         }
     }
-    
+
+    private func handleAuthError(_ error: Error) {
+        if let authError = AuthErrorCode(rawValue: error._code) {
+            switch authError {
+            case .wrongPassword:
+                alertMessage = "The password is incorrect."
+            case .invalidEmail:
+                alertMessage = "The email address is invalid."
+            case .userNotFound:
+                alertMessage = "No account found for this email."
+            default:
+                alertMessage = "Sign-in failed due to an unexpected error: \(error.localizedDescription). Please try again."
+            }
+        } else {
+            alertMessage = "An unknown error occurred: \(error.localizedDescription)"
+        }
+        showAlert = true
+    }
+
     private func resetPassword() {
         guard !email.isEmpty else {
             alertMessage = "Please enter your email address."
