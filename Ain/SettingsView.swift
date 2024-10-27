@@ -19,6 +19,7 @@ struct SettingsView: View {
     @State private var showAboutUs = false
     @State private var showChangePassword = false
     @State private var navigateToContentView = false  // New state for navigation
+    @State private var showActionSheet = false // State for action sheet confirmation
 
     var body: some View {
         NavigationView {
@@ -147,53 +148,68 @@ struct SettingsView: View {
                     
                     Spacer()
                     
-                    // "To Content" Button - Red button that navigates to ContentView
-                    NavigationLink(destination: ContentView().navigationBarBackButtonHidden(true), isActive: $navigateToContentView) {
-                        Button(action: {
-                            navigateToContentView = true
-                        }) {
-                            Text("To Content")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .foregroundColor(.white)
-                                .background(Color.red)
-                                .cornerRadius(10)
-                                .padding(.horizontal)
-                        }
-                    }
-                    
-                    Spacer()
-                }
-                .padding(.top, -20)
-            }
-            .navigationBarBackButtonHidden(true)
-            .onAppear {
-                fetchUserData()
-            }
-            .alert(isPresented: $showAlert) {
-                Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-            }
-        }
-    }
-    
-    private func fetchUserData() {
-        let db = Firestore.firestore()
-        if let user = Auth.auth().currentUser {
-            db.collection("Guardian").document(user.uid).getDocument { (document, error) in
-                if let document = document, document.exists {
-                    let firstName = document.data()?["firstName"] as? String ?? ""
-                    let lastName = document.data()?["lastName"] as? String ?? ""
-                    userName = "\(firstName) \(lastName)"
-                } else {
-                    userName = "Error fetching name: \(error?.localizedDescription ?? "Unknown error")"
-                }
-            }
-        } else {
-            userName = "User not logged in."
-        }
-    }
-}
+                    // "Go to Content" Button using Action Sheet
+                                     Button(action: {
+                                         showActionSheet = true // Show action sheet on tap
+                                     }) {
+                                         Text("Sign Out")
+                                             .frame(maxWidth: .infinity)
+                                             .padding()
+                                             .foregroundColor(.red)
+                                             .background(Color(hexString: "F2F2F2"))
+                                             .cornerRadius(10)
+                                             .shadow(radius: 1)
+                                             .padding(.horizontal)
+                                     }
+                                     .actionSheet(isPresented: $showActionSheet) {
+                                         ActionSheet(
+                                             title: Text("Are you sure?"),
+                                             message: Text("By continuing, you will be signed out of your account"),
+                                             buttons: [
+                                                 .default(Text("Yes, Sign out")) {
+                                                     navigateToContentView = true
+                                                 },
+                                                 .cancel()
+                                             ]
+                                         )
+                                     }
 
+                                     // Hidden NavigationLink to trigger navigation
+                                     NavigationLink(
+                                         destination: ContentView().navigationBarBackButtonHidden(true),
+                                         isActive: $navigateToContentView
+                                     ) {
+                                         EmptyView()
+                                     }
+                                     
+                                     Spacer()
+                                 }
+                                 .padding(.top, -20)
+                             }
+                             .navigationBarBackButtonHidden(true)
+                             .onAppear {
+                                 fetchUserData()
+                             }
+                         }
+                     }
+                     
+                     private func fetchUserData() {
+                         let db = Firestore.firestore()
+                         if let user = Auth.auth().currentUser {
+                             db.collection("Guardian").document(user.uid).getDocument { (document, error) in
+                                 if let document = document, document.exists {
+                                     let firstName = document.data()?["firstName"] as? String ?? ""
+                                     let lastName = document.data()?["lastName"] as? String ?? ""
+                                     userName = "\(firstName) \(lastName)"
+                                 } else {
+                                     userName = "Error fetching name: \(error?.localizedDescription ?? "Unknown error")"
+                                 }
+                             }
+                         } else {
+                             userName = "User not logged in."
+                         }
+                     }
+                 }
 
     // private func signOut() {
     //     let auth = Auth.auth()
