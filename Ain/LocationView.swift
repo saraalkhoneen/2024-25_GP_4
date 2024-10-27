@@ -8,60 +8,76 @@ import MapKit
 struct LocationView: View {
     // Define a region for the map
     @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: -34.603722, longitude: -58.381592), // Sample coordinates (Buenos Aires)
+        center: CLLocationCoordinate2D(latitude: -34.603722, longitude: -58.381592), // Sample coordinates
         span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
     )
+    
+    // Properties to simulate the two conditions
+    @State private var hasLinkedVIUser = false // Simulates check for linked VI ID
+    @State private var isLocationSharingEnabled = false // Simulates VI's location sharing status
+    @State private var showInfoAlert = false // Controls the display of the info alert
 
     var body: some View {
-        NavigationView { // Ensure NavigationView is at the top level
+        NavigationView {
             ZStack {
                 // Background color
-                Color(hexString: "3C6E71") // Use the custom hex initializer defined in SharedComponents.swift
+                Color(hexString: "F2F2F2")
                     .edgesIgnoringSafeArea(.all)
                 
                 VStack {
-                    // Navigation bar with back button and settings button
+                    // Navigation bar with title and hint icon
                     HStack {
-                        Button(action: {
-                            // Handle back navigation (you can add a dismiss or pop action here if needed)
-                        }) {
-                            Image(systemName: "arrow.left")
-                                .foregroundColor(.white)
-                                .padding()
-                        }
-                        .navigationBarBackButtonHidden(true) // Hide the default back button
-                        .onTapGesture {
-                            // Handle back action here
-                        }
-
                         Spacer()
                         
-                        Text("Badr Location")
+                        Text("Location")
                             .font(.title2)
                             .fontWeight(.bold)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color(hexString: "3C6E71"))
+                        
+                        // Hint button with alert
+                        Button(action: {
+                            showInfoAlert.toggle()
+                        }) {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundColor(Color(hexString: "3C6E71"))
+                                .font(.title2)
+                        }
+                        .alert(isPresented: $showInfoAlert) {
+                            Alert(
+                                title: Text("Info"),
+                                message: Text("The other user should share their location with you for you to safely watch them."),
+                                dismissButton: .default(Text("OK"))
+                            )
+                        }
                         
                         Spacer()
-                        
-                        NavigationLink(destination: SettingsView()) {
-                            Image(systemName: "gearshape.fill")
-                                .resizable()
-                                .frame(width: 30, height: 30)
-                                .foregroundColor(.white)
-                                .padding()
-                        }
                     }
                     .padding(.top, 10)
                     .padding(.horizontal)
 
-                    // Map with a marker
-                    Map(coordinateRegion: $region, annotationItems: [Marker(coordinate: CLLocationCoordinate2D(latitude: -34.603722, longitude: -58.381592))]) { marker in
-                        MapMarker(coordinate: marker.coordinate, tint: .orange)
-                    }
-                    .frame(height: 300)
-                    .cornerRadius(15)
-                    .padding(.horizontal, 20)
+                    // Grayed-out map with error message if location sharing is disabled or VI user not linked
+                    ZStack {
+                        Map(coordinateRegion: $region, annotationItems: hasLinkedVIUser && isLocationSharingEnabled ? [Marker(coordinate: region.center)] : []) { marker in
+                            MapMarker(coordinate: marker.coordinate, tint: .orange)
+                        }
+                        .frame(height: 300)
+                        .cornerRadius(15)
+                        .padding(.horizontal, 20)
+                        .colorMultiply(hasLinkedVIUser && isLocationSharingEnabled ? Color.clear : Color.gray) // Gray overlay for unavailable state
 
+                        if !hasLinkedVIUser || !isLocationSharingEnabled {
+                            VStack {
+                                Text("The Visually Impaired’s location is currently unavailable.")
+                                    .foregroundColor(.white)
+                                    .padding()
+                                    .background(Color(hexString: "3C6E71"))
+                                    .cornerRadius(10)
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                    }
+                    .padding(.top, 10)
+                    
                     Spacer()
                 }
             }
