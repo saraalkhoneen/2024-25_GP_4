@@ -11,7 +11,6 @@ class AppState: ObservableObject {
 
 // Settings View
 struct SettingsView: View {
-    @State private var isShowingSignOutAlert = false
     @State private var userName: String = "Loading..."
     @State private var showAlert = false
     @State private var alertMessage = ""
@@ -19,8 +18,7 @@ struct SettingsView: View {
     @State private var showTermsConditions = false
     @State private var showAboutUs = false
     @State private var showChangePassword = false
-    @Environment(\.presentationMode) var presentationMode
-    @EnvironmentObject var appState: AppState  // Access AppState for navigation
+    @State private var navigateToContentView = false  // New state for navigation
 
     var body: some View {
         NavigationView {
@@ -149,40 +147,26 @@ struct SettingsView: View {
                     
                     Spacer()
                     
-                    Button(action: {
-                        isShowingSignOutAlert = true
-                    }) {
-                        HStack {
-                            Text("Sign out")
-                                .foregroundColor(.red)
-                            Spacer()
-                            Image(systemName: "arrowshape.turn.up.left.fill")
-                                .foregroundColor(.red)
+                    // "To Content" Button - Red button that navigates to ContentView
+                    NavigationLink(destination: ContentView().navigationBarBackButtonHidden(true), isActive: $navigateToContentView) {
+                        Button(action: {
+                            navigateToContentView = true
+                        }) {
+                            Text("To Content")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .foregroundColor(.white)
+                                .background(Color.red)
+                                .cornerRadius(10)
+                                .padding(.horizontal)
                         }
-                        .padding()
-                        .background(Color(hexString: "F2F2F2"))
-                        .cornerRadius(10)
-                        .shadow(radius: 1)
-                        .padding(.horizontal)
-                    }
-                    .alert(isPresented: $isShowingSignOutAlert) {
-                        Alert(
-                            title: Text("Are you sure you want to sign out?"),
-                            message: Text("You will be signed out of your account."),
-                            primaryButton: .destructive(Text("Sign out")) {
-                                signOut()  // Call the sign-out function if the user confirms
-                            },
-                            secondaryButton: .cancel()
-                        )
                     }
                     
                     Spacer()
                 }
                 .padding(.top, -20)
             }
-            .navigationBarItems(leading: EmptyView())
             .navigationBarBackButtonHidden(true)
-            .navigationBarTitle("", displayMode: .inline)
             .onAppear {
                 fetchUserData()
             }
@@ -208,20 +192,32 @@ struct SettingsView: View {
             userName = "User not logged in."
         }
     }
-    
-    func signOut() {
-        do {
-            try Auth.auth().signOut()
-            AppState.shared.isLoggedIn = false  // This will redirect to the login screen
-        } catch let signOutError as NSError {
-            alertMessage = "Error signing out: \(signOutError.localizedDescription)"
-            showAlert = true
-        }
-    }
-
 }
 
-// Change Password View
+
+    // private func signOut() {
+    //     let auth = Auth.auth()
+    //     do {
+    //         // Perform Firebase sign out
+    //         try auth.signOut()
+    //
+    //         // Update UserDefaults to indicate the user is no longer signed in
+    //         let defaults = UserDefaults.standard
+    //         defaults.set(false, forKey: "isUserSignedIn")
+    //
+    //         // Set AppState to logged out to manage the navigation state
+    //         AppState.shared.isLoggedIn = false
+    //
+    //         // Optionally dismiss the current view if needed
+    //         self.presentationMode.wrappedValue.dismiss()
+    //
+    //     } catch let signOutError as NSError {
+    //         // Handle any sign-out error and show an alert
+    //         alertMessage = "Error signing out: \(signOutError.localizedDescription)"
+    //         showAlert = true
+    //     }
+    // }
+
 struct ChangePasswordView: View {
     @State private var email: String = ""
     @State private var showAlert = false
@@ -303,7 +299,6 @@ struct AboutUsView: View {
         .navigationTitle("About Us")
     }
 }
-
 
 struct PrivacyPolicyView: View {
     var body: some View {

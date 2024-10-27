@@ -178,10 +178,11 @@ struct MediaView1: View {
         NavigationView {
             VStack(spacing: 20) {
                 Text("Media")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .padding(.top, 20)
-                    .foregroundColor(Color(hexString: "3C6E71"))
+                                    .font(.title)
+                                    .fontWeight(.bold)
+                                    .padding(.top, 20)
+                                    .foregroundColor(Color(hexString: "3C6E71"))
+                                
                 // Info Button with Alert
                                    Button(action: {
                                        showInfoAlert.toggle()
