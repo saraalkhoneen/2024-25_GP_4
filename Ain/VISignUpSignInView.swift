@@ -71,6 +71,7 @@ struct ViStepByStepSignUpView: View {
     @State private var alertMessage = ""
     @State private var isLoading = false
     
+    
     var body: some View {
         VStack(spacing: 20) {
             if step == 1 {
@@ -106,6 +107,17 @@ struct ViStepByStepSignUpView: View {
                 }
                 .padding(.horizontal)
                 .disabled(isLoading)
+        
+                Button(action: { step = 1 }) {
+                    Text("Back")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(hexString: "D95F4B"))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .disabled(isLoading)
                 
             } else if step == 3 {
                 CustomTextField(placeholder: "Password", text: $password, isSecure: true)
@@ -114,6 +126,16 @@ struct ViStepByStepSignUpView: View {
                 
                 Button(action: registerUser) {
                     Text("Sign Up")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(hexString: "D95F4B"))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .disabled(isLoading)
+                Button(action: { step = 2 }) {
+                    Text("Back")
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color(hexString: "D95F4B"))
@@ -214,28 +236,30 @@ struct ViStepByStepSignUpView: View {
             return
         }
 
+        // Password validation criteria
         let uppercaseRegex = ".*[A-Z]+.*"
+        let lowercaseRegex = ".*[a-z]+.*"
+        let numberRegex = ".*[0-9]+.*"
+        let specialCharacterRegex = ".*[!@#$%^&*]+.*" // Adjusted regex for special characters
+
         guard NSPredicate(format: "SELF MATCHES %@", uppercaseRegex).evaluate(with: password) else {
             alertMessage = "Password must include at least one uppercase letter."
             showAlert = true
             return
         }
 
-        let lowercaseRegex = ".*[a-z]+.*"
         guard NSPredicate(format: "SELF MATCHES %@", lowercaseRegex).evaluate(with: password) else {
             alertMessage = "Password must include at least one lowercase letter."
             showAlert = true
             return
         }
 
-        let numberRegex = ".*[0-9]+.*"
         guard NSPredicate(format: "SELF MATCHES %@", numberRegex).evaluate(with: password) else {
             alertMessage = "Password must include at least one number."
             showAlert = true
             return
         }
 
-        let specialCharacterRegex = ".*[!@#$%^&*.]+.*"
         guard NSPredicate(format: "SELF MATCHES %@", specialCharacterRegex).evaluate(with: password) else {
             alertMessage = "Password must include at least one special character."
             showAlert = true
@@ -248,8 +272,10 @@ struct ViStepByStepSignUpView: View {
             return
         }
 
+        // Function to check if the unique code exists
         checkUniqueCodeExists(uniqueCode)
     }
+
 
     private func checkUniqueCodeExists(_ code: String) {
         isLoading = true
@@ -324,7 +350,7 @@ struct ViStepByStepSignUpView: View {
                             alertMessage = "Error linking with guardian: \(error.localizedDescription)"
                         } else {
                             alertMessage = "Registration successful. Please verify your email."
-                            showAlert = true
+                                showAlert = true
                             selectedTab = "Sign In"
                         }
                     }
@@ -489,3 +515,4 @@ struct VISignUpSignInView_Previews: PreviewProvider {
         VISignUpSignInView()
     }
 }
+
