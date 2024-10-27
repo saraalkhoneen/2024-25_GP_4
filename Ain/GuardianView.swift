@@ -269,7 +269,9 @@ struct NotificationsView1: View {
                 Spacer()
             }
             
+            
         }
+        
     }
     
     private func formattedDate(_ date: Date) -> String {

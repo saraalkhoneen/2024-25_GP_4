@@ -448,39 +448,41 @@ struct SignInView: View {
 }
 
 
-// Custom TextField
 struct CustomTextField: View {
     var placeholder: String
     @Binding var text: String
     var isSecure: Bool = false
     @State private var isPasswordVisible = false
-    
+
     var body: some View {
-        HStack {
-            if isSecure && !isPasswordVisible {
-                SecureField(placeholder, text: $text)
-                    .padding()
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(8)
-            } else {
-                TextField(placeholder, text: $text)
-                    .padding()
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(8)
-            }
-            
-            if isSecure {
-                Button(action: {
-                    isPasswordVisible.toggle()
-                }) {
-                    Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
-                        .foregroundColor(.gray)
+        ZStack {
+            HStack {
+                if isSecure && !isPasswordVisible {
+                    SecureField(placeholder, text: $text)
+                        .padding(.leading, 10)
+                } else {
+                    TextField(placeholder, text: $text)
+                        .padding(.leading, 10)
                 }
-                .padding(.trailing, 10)
+
+                if isSecure {
+                    Button(action: {
+                        isPasswordVisible.toggle()
+                    }) {
+                        Image(systemName: isPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.trailing, 10)
+                }
             }
+            .frame(height: 55) // Set a consistent height for the text field box
+            .background(Color.gray.opacity(0.2))
+            .cornerRadius(8)
         }
+        .padding(.horizontal) // Add padding outside the ZStack to keep the field size consistent
     }
 }
+
 
 // Custom shape for the top curve
 struct TopCurveShape: Shape {
