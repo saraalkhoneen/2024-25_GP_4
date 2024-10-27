@@ -73,54 +73,87 @@ struct StepByStepSignUpView: View {
 
     
     var body: some View {
-        VStack(spacing: 20) {
-            if step == 1 {
-                // Step 1: First Name and Last Name
-                CustomTextField(placeholder: "First Name", text: $firstName)
-                CustomTextField(placeholder: "Last Name", text: $lastName)
-                
-                Button(action: proceedToNextStep) {
-                    Text("Next")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(isLoading)
-                
-            } else if step == 2 {
-                // Step 2: Email and Confirm Email
-                CustomTextField(placeholder: "Email", text: $email)
-                CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
-                
-                Button(action: validateEmail) {
-                    Text("Next")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(isLoading)
-                
-            } else if step == 3 {
-                // Step 3: Password and Confirm Password
-                CustomTextField(placeholder: "Password", text: $password, isSecure: true)
-                CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
-                
-                Button(action: register) {
-                    Text("Sign Up")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(isLoading)
+            VStack(spacing: 20) {
+                if step == 1 {
+                    // Step 1: First Name and Last Name with labels
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("First Name")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "First Name", text: $firstName)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Last Name")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Last Name", text: $lastName)
+                    }
+                    
+                    Button(action: proceedToNextStep) {
+                        Text("Next")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "D95F4B"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .disabled(isLoading)
+                    
+                } else if step == 2 {
+                    // Step 2: Email and Confirm Email with labels
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Email")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Email", text: $email)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Confirm Email")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
+                    }
+                    
+                    Button(action: validateEmail) {
+                        Text("Next")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "D95F4B"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .disabled(isLoading)
+                    
+                } else if step == 3 {
+                    // Step 3: Password and Confirm Password with labels
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Password")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Confirm Password")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
+                    }
+                    
+                    Button(action: register) {
+                        Text("Sign Up")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "D95F4B"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .disabled(isLoading)
             }
         }
         .alert(isPresented: $showAlert) {
@@ -365,30 +398,41 @@ struct SignInView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            CustomTextField(placeholder: "Email", text: $email)
-            CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+                   VStack(alignment: .leading, spacing: 5) {
+                       Text("Email")
+                           .font(.subheadline)
+                           .foregroundColor(.gray)
+                       CustomTextField(placeholder: "Email", text: $email)
+                   }
+                   
+                   VStack(alignment: .leading, spacing: 5) {
+                       Text("Password")
+                           .font(.subheadline)
+                           .foregroundColor(.gray)
+                       CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+                   }
+                   
+                   Button(action: signIn) {
+                       Text("Sign In")
+                           .frame(maxWidth: .infinity)
+                           .padding()
+                           .background(Color(hexString: "D95F4B"))
+                           .foregroundColor(.white)
+                           .cornerRadius(12)
+                   }
+                   .padding(.horizontal)
+                   .disabled(isLoading)
 
-            Button(action: signIn) {
-                Text("Sign In")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(hexString: "D95F4B"))
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-            }
-            .padding(.horizontal)
-            .disabled(isLoading)
+                   NavigationLink(destination: GuardianView().navigationBarBackButtonHidden(true), isActive: $isSignedIn) {
+                       EmptyView()
+                   }
 
-            NavigationLink(destination: GuardianView().navigationBarBackButtonHidden(true), isActive: $isSignedIn) {
-                EmptyView()
-            }
-
-            Button(action: resetPassword) {
-                Text("Forgot Password?")
-                    .foregroundColor(Color.blue)
-            }
-            .padding(.top, 20)
-        }
+                   Button(action: resetPassword) {
+                       Text("Forgot Password?")
+                           .foregroundColor(Color.blue)
+                   }
+                   .padding(.top, 20)
+               }
         .padding()
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
