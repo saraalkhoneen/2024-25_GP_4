@@ -343,7 +343,7 @@ struct SignInView: View {
             .padding(.horizontal)
             .disabled(isLoading)
 
-            NavigationLink(destination: GuardianView(), isActive: $isSignedIn) {
+            NavigationLink(destination: GuardianView().navigationBarBackButtonHidden(true), isActive: $isSignedIn) {
                 EmptyView()
             }
 

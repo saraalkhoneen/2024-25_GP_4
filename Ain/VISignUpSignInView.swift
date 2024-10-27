@@ -382,7 +382,7 @@ struct ViSignInView: View {
             }
             .padding(.top, 20)
             
-            NavigationLink(destination: VisuallyImpairedView(), isActive: $navigateToMainView) { EmptyView() }
+            NavigationLink(destination: VisuallyImpairedView().navigationBarBackButtonHidden(true), isActive: $navigateToMainView) { EmptyView() }
         }
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
