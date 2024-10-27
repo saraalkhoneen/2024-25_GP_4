@@ -69,74 +69,131 @@ struct StepByStepSignUpView: View {
     @State private var alertMessage = ""
     @State private var isLoading = false
     
+    @State private var signUpSuccess = false
+
+    
     var body: some View {
-        VStack(spacing: 20) {
-            if step == 1 {
-                // Step 1: First Name and Last Name
-                CustomTextField(placeholder: "First Name", text: $firstName)
-                CustomTextField(placeholder: "Last Name", text: $lastName)
-                
-                Button(action: proceedToNextStep) {
-                    Text("Next")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(isLoading)
-                
-            } else if step == 2 {
-                // Step 2: Email and Confirm Email
-                CustomTextField(placeholder: "Email", text: $email)
-                CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
-                
-                Button(action: validateEmail) {
-                    Text("Next")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(isLoading)
-                
-            } else if step == 3 {
-                // Step 3: Password and Confirm Password
-                CustomTextField(placeholder: "Password", text: $password, isSecure: true)
-                CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
-                
-                Button(action: register) {
-                    Text("Sign Up")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(hexString: "D95F4B"))
-                        .foregroundColor(.white)
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                .disabled(isLoading)
+            VStack(spacing: 20) {
+                if step == 1 {
+                    // Step 1: First Name and Last Name with labels
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("First Name")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "First Name", text: $firstName)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Last Name")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Last Name", text: $lastName)
+                    }
+                    
+                    Button(action: proceedToNextStep) {
+                        Text("Next")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "D95F4B"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .disabled(isLoading)
+                    
+                } else if step == 2 {
+                    // Step 2: Email and Confirm Email with labels
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Email")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Email", text: $email)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Confirm Email")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
+                    }
+                    
+                    Button(action: validateEmail) {
+                        Text("Next")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "D95F4B"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .disabled(isLoading)
+                    
+                } else if step == 3 {
+                    // Step 3: Password and Confirm Password with labels
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Password")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Confirm Password")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
+                    }
+                    
+                    Button(action: register) {
+                        Text("Sign Up")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "D95F4B"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .disabled(isLoading)
             }
         }
         .alert(isPresented: $showAlert) {
-            Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            Alert(title: Text("Success"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
+
         .padding(.horizontal)
         .overlay(
             Group {
-                if isLoading {
-                    Color.black.opacity(0.4)
-                        .edgesIgnoringSafeArea(.all)
-                    ProgressView("Loading...")
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.5)
-                }
-            }
-        )
-    }
-    
+                       if isLoading {
+                           Color.black.opacity(0.4)
+                               .edgesIgnoringSafeArea(.all)
+                           ProgressView("Loading...")
+                               .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                               .scaleEffect(1.5)
+                       }
+                   }
+               )
+               .overlay(
+                   // Success overlay that appears on successful registration من هنا والي ف،قه يتحكم برساله نجاح الدخول 
+                Group {
+                               if signUpSuccess {
+                                   VStack(spacing: 10) {
+                                       Image(systemName: "checkmark.circle.fill")
+                                           .font(.system(size: 60))
+                                           .foregroundColor(.green)
+                                       Text("Registration Successful!")
+                                           .font(.headline)
+                                           .foregroundColor(.white)
+                                       Text("Please check your inbox for email verification,\nthen sign in.")
+                                           .multilineTextAlignment(.center)
+                                           .foregroundColor(.white)
+                                           .padding(.horizontal)
+                                   }
+                                   .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                   .background(Color.black.opacity(0.4).edgesIgnoringSafeArea(.all))
+                               }
+                           }
+                       )
+                   }
     private func proceedToNextStep() {
         if firstName.isEmpty && lastName.isEmpty {
             alertMessage = "Please enter both your first and last names."
@@ -293,14 +350,16 @@ struct StepByStepSignUpView: View {
                     alertMessage = "Error saving user info: \(error.localizedDescription)"
                     showAlert = true
                 } else {
-                    alertMessage = "Registration successful! Please check your inbox for email verification, then you can sign in"
-                    selectedTab = "Sign In"
-                    step = 1
+                    signUpSuccess = true // Trigger success state
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 6) { // هنا ترا ماسج  وتحديد مدته success feedback
+                        selectedTab = "Sign In"
+                        step = 1
+                        signUpSuccess = false // Reset the success state
+                    }
                 }
             }
         }
     }
-
     // Generates a unique code and checks it in Firestore before returning
     private func generateUniqueCode(completion: @escaping (String) -> Void) {
         var uniqueCode = ""
@@ -339,30 +398,41 @@ struct SignInView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            CustomTextField(placeholder: "Email", text: $email)
-            CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+                   VStack(alignment: .leading, spacing: 5) {
+                       Text("Email")
+                           .font(.subheadline)
+                           .foregroundColor(.gray)
+                       CustomTextField(placeholder: "Email", text: $email)
+                   }
+                   
+                   VStack(alignment: .leading, spacing: 5) {
+                       Text("Password")
+                           .font(.subheadline)
+                           .foregroundColor(.gray)
+                       CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+                   }
+                   
+                   Button(action: signIn) {
+                       Text("Sign In")
+                           .frame(maxWidth: .infinity)
+                           .padding()
+                           .background(Color(hexString: "D95F4B"))
+                           .foregroundColor(.white)
+                           .cornerRadius(12)
+                   }
+                   .padding(.horizontal)
+                   .disabled(isLoading)
 
-            Button(action: signIn) {
-                Text("Sign In")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(hexString: "D95F4B"))
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-            }
-            .padding(.horizontal)
-            .disabled(isLoading)
+                   NavigationLink(destination: GuardianView().navigationBarBackButtonHidden(true), isActive: $isSignedIn) {
+                       EmptyView()
+                   }
 
-            NavigationLink(destination: GuardianView().navigationBarBackButtonHidden(true), isActive: $isSignedIn) {
-                EmptyView()
-            }
-
-            Button(action: resetPassword) {
-                Text("Forgot Password?")
-                    .foregroundColor(Color.blue)
-            }
-            .padding(.top, 20)
-        }
+                   Button(action: resetPassword) {
+                       Text("Forgot Password?")
+                           .foregroundColor(Color.blue)
+                   }
+                   .padding(.top, 20)
+               }
         .padding()
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
