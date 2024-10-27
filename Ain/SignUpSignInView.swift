@@ -91,7 +91,10 @@ struct StepByStepSignUpView: View {
                     }
                     
                     Button(action: proceedToNextStep) {
-                        Text("Next")
+                        HStack{
+                            Text("Next")
+                            Image(systemName: "chevron.right")
+                        }
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color(hexString: "D95F4B"))
@@ -116,9 +119,23 @@ struct StepByStepSignUpView: View {
                             .foregroundColor(.gray)
                         CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
                     }
-                    
+                    Button(action: { step = 1 }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(hexString: "5a5a5a"))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
                     Button(action: validateEmail) {
-                        Text("Next")
+                        HStack{
+                            Text("Next")
+                            Image(systemName: "chevron.right")
+                        }
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color(hexString: "D95F4B"))
@@ -143,9 +160,23 @@ struct StepByStepSignUpView: View {
                             .foregroundColor(.gray)
                         CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
                     }
-                    
+                    Button(action: { step = 2 }) {
+                        HStack{
+                            Text("Back")
+                            Image(systemName: "chevron.left")
+                        }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(hexString: "5a5a5a"))
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
                     Button(action: register) {
-                        Text("Sign Up")
+                        HStack{
+                            Text("Sign Up")
+                            Image(systemName: "chevron.right")
+                        }
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color(hexString: "D95F4B"))
