@@ -293,7 +293,7 @@ struct StepByStepSignUpView: View {
                     alertMessage = "Error saving user info: \(error.localizedDescription)"
                     showAlert = true
                 } else {
-                    alertMessage = "Registration successful! Please check your inbox for email verification."
+                    alertMessage = "Registration successful! Please check your inbox for email verification, then you can sign in"
                     selectedTab = "Sign In"
                     step = 1
                 }
