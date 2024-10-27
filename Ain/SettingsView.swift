@@ -3,6 +3,13 @@ import Firebase
 import FirebaseAuth
 import FirebaseFirestore
 
+// AppState to manage logged-in state
+class AppState: ObservableObject {
+    static let shared = AppState()
+    @Published var isLoggedIn = true
+}
+
+// Settings View
 struct SettingsView: View {
     @State private var isShowingSignOutAlert = false
     @State private var userName: String = "Loading..."
@@ -13,6 +20,7 @@ struct SettingsView: View {
     @State private var showAboutUs = false
     @State private var showChangePassword = false
     @Environment(\.presentationMode) var presentationMode
+    @EnvironmentObject var appState: AppState  // Access AppState for navigation
 
     var body: some View {
         NavigationView {
@@ -160,9 +168,9 @@ struct SettingsView: View {
                     .alert(isPresented: $isShowingSignOutAlert) {
                         Alert(
                             title: Text("Are you sure you want to sign out?"),
-                            message: Text("You will be logged out of your account."),
+                            message: Text("You will be signed out of your account."),
                             primaryButton: .destructive(Text("Sign out")) {
-                                signOut()
+                                signOut()  // Call the sign-out function if the user confirms
                             },
                             secondaryButton: .cancel()
                         )
@@ -204,13 +212,13 @@ struct SettingsView: View {
     func signOut() {
         do {
             try Auth.auth().signOut()
-            presentationMode.wrappedValue.dismiss()
+            AppState.shared.isLoggedIn = false  // This will redirect to the login screen
         } catch let signOutError as NSError {
-            print("Error signing out: %@", signOutError)
             alertMessage = "Error signing out: \(signOutError.localizedDescription)"
             showAlert = true
         }
     }
+
 }
 
 // Change Password View
@@ -275,13 +283,27 @@ struct AboutUsView: View {
                     .font(.title)
                     .fontWeight(.bold)
                     .padding(.top, 20)
-                Text("This is the About Us page where information about the application and its purpose is shared. Additional details on the team, mission, and vision can be added here.")
+
+                Text("Our Mission")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("Our mission is to create applications that enhance the lives of our users, focusing on innovation, quality, and user satisfaction.")
                     .padding(.horizontal)
+
+                Text("Our Vision")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("We envision a future where technology seamlessly integrates into daily life, making tasks simpler and more enjoyable.")
+                    .padding(.horizontal)
+
+                Spacer()
             }
             .padding()
         }
+        .navigationTitle("About Us")
     }
 }
+
 
 struct PrivacyPolicyView: View {
     var body: some View {
@@ -291,13 +313,39 @@ struct PrivacyPolicyView: View {
                     .font(.title)
                     .fontWeight(.bold)
                     .padding(.top, 20)
-                Text("The privacy policy outlines how user information is collected, used, and safeguarded. It provides transparency and details on data privacy practices.")
+
+                Text("Introduction")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("This privacy policy outlines how user information is collected, used, and safeguarded. We prioritize transparency and are committed to protecting user data in compliance with applicable laws.")
                     .padding(.horizontal)
+
+                Text("Data Collection")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("We collect data to provide better services to our users. Information collected includes, but is not limited to, personal details, usage data, and device information.")
+                    .padding(.horizontal)
+
+                Text("Data Usage")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("Collected data is used to improve our services, enhance user experience, and provide personalized content. We may also use data for analytics, troubleshooting, and support.")
+                    .padding(.horizontal)
+
+                Text("Data Protection")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("We implement industry-standard security measures to protect user data. Access to data is limited to authorized personnel, and we regularly review our data protection practices.")
+                    .padding(.horizontal)
+                
+                Spacer()
             }
             .padding()
         }
+        .navigationTitle("Privacy Policy")
     }
 }
+
 
 struct TermsConditionsView: View {
     var body: some View {
@@ -307,13 +355,39 @@ struct TermsConditionsView: View {
                     .font(.title)
                     .fontWeight(.bold)
                     .padding(.top, 20)
-                Text("These are the terms and conditions for using the application. Users are expected to abide by the outlined rules and regulations.")
+
+                Text("Introduction")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("These terms and conditions govern your use of this application. By using the app, you agree to comply with and be bound by these terms.")
                     .padding(.horizontal)
+
+                Text("User Responsibilities")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("Users are expected to use the app responsibly and abide by all rules. Any misuse of the app, including unauthorized access, modification, or distribution, is strictly prohibited.")
+                    .padding(.horizontal)
+
+                Text("Account Security")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("Users are responsible for maintaining the confidentiality of their account information. We are not liable for any loss or damage resulting from unauthorized access to your account.")
+                    .padding(.horizontal)
+
+                Text("Limitation of Liability")
+                    .font(.headline)
+                    .padding(.top, 10)
+                Text("We are not liable for any damages resulting from the use or inability to use the app. Users accept that the app is provided as-is, without any warranties.")
+                    .padding(.horizontal)
+
+                Spacer()
             }
             .padding()
         }
+        .navigationTitle("Terms and Conditions")
     }
 }
+
 
 struct SettingsView_Previews: PreviewProvider {
     static var previews: some View {
