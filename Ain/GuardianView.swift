@@ -108,7 +108,7 @@ struct GuardianView: View {
                                 .padding(.horizontal, 20)
                             Spacer(minLength: 60)
                             
-                            NavigationLink(destination: AddUserGuideView1()) {
+                            NavigationLink(destination: CommandView()) {
                                 Text("How to get started")
                                     .foregroundColor(.white)
                                     .padding()
