@@ -56,7 +56,7 @@ struct ContentView: View {
                     // Buttons for Visually Impaired and Guardian
                     VStack(spacing: 20) {
                         // Navigate to VISignUpSignInView
-                        NavigationLink(destination: VISignUpSignInView()) {
+                        NavigationLink(destination: VISignUpSignInView().navigationBarBackButtonHidden(true)) {
                             VStack {
                                 Image(systemName: "person.fill") // Replace with your custom icon if needed
                                     .resizable()
@@ -74,7 +74,7 @@ struct ContentView: View {
                         }
                         
                         // Navigate to SignUpSignInView
-                        NavigationLink(destination: SignUpSignInView()) {
+                        NavigationLink(destination: SignUpSignInView().navigationBarBackButtonHidden(true)) {
                             VStack {
                                 Image(systemName: "person.fill") // Replace with your custom icon if needed
                                     .resizable()
