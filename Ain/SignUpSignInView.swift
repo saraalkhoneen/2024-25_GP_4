@@ -69,6 +69,9 @@ struct StepByStepSignUpView: View {
     @State private var alertMessage = ""
     @State private var isLoading = false
     
+    @State private var signUpSuccess = false
+
+    
     var body: some View {
         VStack(spacing: 20) {
             if step == 1 {
@@ -121,22 +124,43 @@ struct StepByStepSignUpView: View {
             }
         }
         .alert(isPresented: $showAlert) {
-            Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            Alert(title: Text("Success"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
+
         .padding(.horizontal)
         .overlay(
             Group {
-                if isLoading {
-                    Color.black.opacity(0.4)
-                        .edgesIgnoringSafeArea(.all)
-                    ProgressView("Loading...")
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.5)
-                }
-            }
-        )
-    }
-    
+                       if isLoading {
+                           Color.black.opacity(0.4)
+                               .edgesIgnoringSafeArea(.all)
+                           ProgressView("Loading...")
+                               .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                               .scaleEffect(1.5)
+                       }
+                   }
+               )
+               .overlay(
+                   // Success overlay that appears on successful registration من هنا والي ف،قه يتحكم برساله نجاح الدخول 
+                Group {
+                               if signUpSuccess {
+                                   VStack(spacing: 10) {
+                                       Image(systemName: "checkmark.circle.fill")
+                                           .font(.system(size: 60))
+                                           .foregroundColor(.green)
+                                       Text("Registration Successful!")
+                                           .font(.headline)
+                                           .foregroundColor(.white)
+                                       Text("Please check your inbox for email verification,\nthen sign in.")
+                                           .multilineTextAlignment(.center)
+                                           .foregroundColor(.white)
+                                           .padding(.horizontal)
+                                   }
+                                   .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                   .background(Color.black.opacity(0.4).edgesIgnoringSafeArea(.all))
+                               }
+                           }
+                       )
+                   }
     private func proceedToNextStep() {
         if firstName.isEmpty && lastName.isEmpty {
             alertMessage = "Please enter both your first and last names."
@@ -293,14 +317,16 @@ struct StepByStepSignUpView: View {
                     alertMessage = "Error saving user info: \(error.localizedDescription)"
                     showAlert = true
                 } else {
-                    alertMessage = "Registration successful! Please check your inbox for email verification, then you can sign in"
-                    selectedTab = "Sign In"
-                    step = 1
+                    signUpSuccess = true // Trigger success state
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 6) { // هنا ترا ماسج  وتحديد مدته success feedback
+                        selectedTab = "Sign In"
+                        step = 1
+                        signUpSuccess = false // Reset the success state
+                    }
                 }
             }
         }
     }
-
     // Generates a unique code and checks it in Firestore before returning
     private func generateUniqueCode(completion: @escaping (String) -> Void) {
         var uniqueCode = ""
