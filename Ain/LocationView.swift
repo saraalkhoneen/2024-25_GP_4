@@ -30,7 +30,7 @@ struct LocationView: View {
                         Spacer()
                         
                         Text("Location")
-                            .font(.title2)
+                            .font(.title)
                             .fontWeight(.bold)
                             .foregroundColor(Color(hexString: "3C6E71"))
                         

@@ -173,6 +173,7 @@ struct GuardianView: View {
 
 // Placeholder views
 struct MediaView1: View {
+    @State private var showInfoAlert = false
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
@@ -181,7 +182,22 @@ struct MediaView1: View {
                     .fontWeight(.bold)
                     .padding(.top, 20)
                     .foregroundColor(Color(hexString: "3C6E71"))
-                
+                // Info Button with Alert
+                                   Button(action: {
+                                       showInfoAlert.toggle()
+                                   }) {
+                                       Image(systemName: "questionmark.circle")
+                                           .foregroundColor(Color(hexString: "3C6E71"))
+                                           .font(.title2)
+                                   }
+                                   .alert(isPresented: $showInfoAlert) {
+                                       Alert(
+                                           title: Text("Info"),
+                                           message: Text("Media such as videos and pictures will appear here when uploaded."),
+                                           dismissButton: .default(Text("OK"))
+                                       )
+                                   }
+                               
                 Spacer()
                 
                 // Message indicating no media available
@@ -214,16 +230,32 @@ struct LocationView1: View { var body: some View { Text("Location Content") } }
 struct SettingsView1: View { var body: some View { Text("Settings Content") } }
 struct NotificationsView1: View {
     @Binding var notifications: [Notification]
-
+    @State private var showInfoAlert = false
     var body: some View {
+        
         NavigationView {
             VStack(spacing: 20) {
                 Text("Notifications")
+                
                     .font(.title)
                     .fontWeight(.bold)
                     .padding(.top, 20)
                     .foregroundColor(Color(hexString: "3C6E71"))
-                
+                Button(action: {
+                                       showInfoAlert.toggle()
+                                   }) {
+                                       Image(systemName: "questionmark.circle")
+                                           .foregroundColor(Color(hexString: "3C6E71"))
+                                           .font(.title2)
+                                   }
+                                   .alert(isPresented: $showInfoAlert) {
+                                       Alert(
+                                           title: Text("Info"),
+                                           message: Text("Notifications appear here when they arrive."),
+                                           dismissButton: .default(Text("OK"))
+                                       )
+                                   }
+                               
                 Spacer()
                 
                 if notifications.isEmpty {
