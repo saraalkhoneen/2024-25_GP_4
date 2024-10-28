@@ -79,17 +79,25 @@ struct ViStepByStepSignUpView: View {
                 if step == 1 {
                     // Step 1: First Name and Last Name with labels
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("First Name*")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                        HStack(spacing: 2) {
+                            Text("First Name")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
                         CustomTextField(placeholder: "First Name", text: $firstName)
                     }
                     .padding(.horizontal)
 
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Last Name*")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                        HStack(spacing: 2) {
+                            Text("Last Name")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
                         CustomTextField(placeholder: "Last Name", text: $lastName)
                     }
                     .padding(.horizontal)
@@ -111,17 +119,25 @@ struct ViStepByStepSignUpView: View {
                 } else if step == 2 {
                     // Step 2: Email and Confirm Email with labels
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Email*")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                        HStack(spacing: 2) {
+                            Text("Email")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
                         CustomTextField(placeholder: "Email", text: $email)
                     }
                     .padding(.horizontal)
 
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Confirm Email*")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                        HStack(spacing: 2) {
+                            Text("Confirm Email")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
                         CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
                     }
                     .padding(.horizontal)
@@ -162,25 +178,37 @@ struct ViStepByStepSignUpView: View {
                 } else if step == 3 {
                     // Step 3: Password, Confirm Password, and Unique Code with labels
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Password*")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                        HStack(spacing: 2) {
+                            Text("Password")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
                         CustomTextField(placeholder: "Password", text: $password, isSecure: true)
                     }
                     .padding(.horizontal)
 
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Confirm Password*")
+                        HStack(spacing: 2) {
+                        Text("Confirm Password")
                             .font(.subheadline)
                             .foregroundColor(.gray)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
                         CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
                     }
                     .padding(.horizontal)
                     
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Unique Code*")
+                        HStack(spacing: 2) {
+                        Text("Unique Code")
                             .font(.subheadline)
                             .foregroundColor(.gray)
+                            Text("*")
+                                .foregroundColor(.red)
+                        }
                         CustomTextField(placeholder: "Unique Code", text: $uniqueCode)
                     }
                     .padding(.horizontal)
@@ -188,8 +216,9 @@ struct ViStepByStepSignUpView: View {
                     HStack(spacing: 10) {
                         Button(action: { step = 2 }) {
                             HStack {
-                                Text("Back")
                                 Image(systemName: "chevron.left")
+                                Text("Back")
+                                
                             }
                             .frame(maxWidth: .infinity)
                             .padding()
@@ -464,31 +493,48 @@ struct ViSignInView: View {
     var body: some View {
            VStack(spacing: 20) {
                VStack(alignment: .leading, spacing: 5) {
-                   Text("Email*")
-                       .font(.subheadline)
-                       .foregroundColor(.gray)
+                   HStack(spacing: 2) {
+                       Text("Email")
+                           .font(.subheadline)
+                           .foregroundColor(.gray)
+                       Text("*")
+                                  .foregroundColor(.red)
+                   }
                    CustomTextField(placeholder: "Ender your Email", text: $email)
                }
                .padding(.horizontal)
                
                VStack(alignment: .leading, spacing: 5) {
-                   Text("Password*")
-                       .font(.subheadline)
-                       .foregroundColor(.gray)
+                   HStack(spacing: 2) {
+                       Text("Password")
+                           .font(.subheadline)
+                           .foregroundColor(.gray)
+                       Text("*")
+                                  .foregroundColor(.red)
+                   }
                    CustomTextField(placeholder: "Ender your Password", text: $password, isSecure: true)
                }
                .padding(.horizontal)
                
                VStack(alignment: .leading, spacing: 5) {
-                   Text("Unique Code*")
+                   HStack(spacing: 2) {
+                   Text("Unique Code")
                        .font(.subheadline)
                        .foregroundColor(.gray)
+                       Text("*")
+                                  .foregroundColor(.red)
+                   }
                    CustomTextField(placeholder: "Ender Guardian's Unique Code", text: $uniqueCode)
                }
                .padding(.horizontal)
                
                Button(action: signInUser) {
-                   Text("Sign In")
+                   HStack {
+                       Text("Sign In")
+                       Image(systemName: "chevron.right")
+                   }
+                   
+                   
                        .frame(maxWidth: .infinity)
                        .padding()
                        .background(Color(hexString: "D95F4B"))

@@ -83,16 +83,24 @@ struct StepByStepSignUpView: View {
         VStack(spacing: 20) {
             if step == 1 {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("First Name*")
+                    HStack(spacing: 2) {
+                    Text("First Name")
                         .font(.subheadline)
                         .foregroundColor(.gray)
+                        Text("*")
+                                    .foregroundColor(.red)
+                            }
                     CustomTextField(placeholder: "Enter your First Name", text: $firstName)
                 }
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Last Name*")
+                    HStack(spacing: 2) {
+                    Text("Last Name")
                         .font(.subheadline)
                         .foregroundColor(.gray)
+                        Text("*")
+                                    .foregroundColor(.red)
+                            }
                     CustomTextField(placeholder: "Enter your Last Name", text: $lastName)
                 }
                 
@@ -115,16 +123,24 @@ struct StepByStepSignUpView: View {
                 
             } else if step == 2 {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Email*")
+                    HStack(spacing: 2) {
+                    Text("Email")
                         .font(.subheadline)
                         .foregroundColor(.gray)
+                    Text("*")
+                                .foregroundColor(.red)
+                        }
                     CustomTextField(placeholder: "Enter your Email", text: $email)
                 }
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Confirm Email*")
+                    HStack(spacing: 2) {
+                    Text("Confirm Email")
                         .font(.subheadline)
                         .foregroundColor(.gray)
+                        Text("*")
+                                    .foregroundColor(.red)
+                            }
                     CustomTextField(placeholder: "Confirm your Email", text: $confirmEmail)
                 }
                 
@@ -159,16 +175,24 @@ struct StepByStepSignUpView: View {
                 
             } else if step == 3 {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Password*")
+                    HStack(spacing: 2) {
+                    Text("Password")
                         .font(.subheadline)
                         .foregroundColor(.gray)
+                        Text("*")
+                                    .foregroundColor(.red)
+                            }
                     CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
                 }
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Confirm Password*")
+                    HStack(spacing: 2) {
+                    Text("Confirm Password")
                         .font(.subheadline)
                         .foregroundColor(.gray)
+                        Text("*")
+                                    .foregroundColor(.red)
+                            }
                     CustomTextField(placeholder: "Confirm your Password", text: $confirmPassword, isSecure: true)
                 }
                 
@@ -187,7 +211,11 @@ struct StepByStepSignUpView: View {
                     .disabled(isLoading)
                     
                     Button(action: register) {
-                        Text("Sign Up")
+                        HStack {
+                            Text("Sign Up")
+                            Image(systemName: "chevron.right")
+                        }
+                        
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color(hexString: "D95F4B"))
@@ -443,21 +471,32 @@ struct SignInView: View {
     var body: some View {
         VStack(spacing: 20) {
                    VStack(alignment: .leading, spacing: 5) {
-                       Text("Email*")
+                       HStack(spacing: 2) {
+                       Text("Email")
                            .font(.subheadline)
                            .foregroundColor(.gray)
+                           Text("*")
+                                      .foregroundColor(.red)
+                              }
                        CustomTextField(placeholder: "Enter your Email", text: $email)
                    }
                    
                    VStack(alignment: .leading, spacing: 5) {
-                       Text("Password*")
+                       HStack(spacing: 2) {
+                       Text("Password")
                            .font(.subheadline)
                            .foregroundColor(.gray)
+                           Text("*")
+                                      .foregroundColor(.red)
+                              }
                        CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
                    }
                    
                    Button(action: signIn) {
-                       Text("Sign In")
+                       HStack {
+                           Text("Sign In")
+                           Image(systemName: "chevron.right")
+                       }
                            .frame(maxWidth: .infinity)
                            .padding()
                            .background(Color(hexString: "D95F4B"))
