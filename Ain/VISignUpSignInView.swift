@@ -79,7 +79,7 @@ struct ViStepByStepSignUpView: View {
                 if step == 1 {
                     // Step 1: First Name and Last Name with labels
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("First Name")
+                        Text("First Name*")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                         CustomTextField(placeholder: "First Name", text: $firstName)
@@ -87,7 +87,7 @@ struct ViStepByStepSignUpView: View {
                     .padding(.horizontal)
 
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Last Name")
+                        Text("Last Name*")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                         CustomTextField(placeholder: "Last Name", text: $lastName)
@@ -111,7 +111,7 @@ struct ViStepByStepSignUpView: View {
                 } else if step == 2 {
                     // Step 2: Email and Confirm Email with labels
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Email")
+                        Text("Email*")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                         CustomTextField(placeholder: "Email", text: $email)
@@ -119,7 +119,7 @@ struct ViStepByStepSignUpView: View {
                     .padding(.horizontal)
 
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Confirm Email")
+                        Text("Confirm Email*")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                         CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
@@ -162,7 +162,7 @@ struct ViStepByStepSignUpView: View {
                 } else if step == 3 {
                     // Step 3: Password, Confirm Password, and Unique Code with labels
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Password")
+                        Text("Password*")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                         CustomTextField(placeholder: "Password", text: $password, isSecure: true)
@@ -170,7 +170,7 @@ struct ViStepByStepSignUpView: View {
                     .padding(.horizontal)
 
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Confirm Password")
+                        Text("Confirm Password*")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                         CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
@@ -178,7 +178,7 @@ struct ViStepByStepSignUpView: View {
                     .padding(.horizontal)
                     
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("Unique Code")
+                        Text("Unique Code*")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                         CustomTextField(placeholder: "Unique Code", text: $uniqueCode)
