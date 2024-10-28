@@ -212,7 +212,7 @@ struct SettingsView: View {
                 userName = "\(firstName) \(lastName)"
             } else {
                 // If not a Guardian, check if user is Visually Impaired
-                db.collection("VisuallyImpaired").document(user.uid).getDocument { (document, error) in
+                db.collection("Visually_Impaired").document(user.uid).getDocument { (document, error) in
                     if let document = document, document.exists {
                         let firstName = document.data()?["firstName"] as? String ?? ""
                         let lastName = document.data()?["lastName"] as? String ?? ""
