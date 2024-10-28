@@ -149,30 +149,34 @@ struct SettingsView: View {
                     Spacer()
                     
                     // "Go to Content" Button using Action Sheet
-                                     Button(action: {
-                                         showActionSheet = true // Show action sheet on tap
-                                     }) {
-                                         Text("Sign Out")
-                                             .frame(maxWidth: .infinity)
-                                             .padding()
-                                             .foregroundColor(.red)
-                                             .background(Color(hexString: "F2F2F2"))
-                                             .cornerRadius(10)
-                                             .shadow(radius: 1)
-                                             .padding(.horizontal)
-                                     }
-                                     .actionSheet(isPresented: $showActionSheet) {
-                                         ActionSheet(
-                                             title: Text("Are you sure?"),
-                                             message: Text("By continuing, you will be signed out of your account"),
-                                             buttons: [
-                                                 .default(Text("Yes, Sign out")) {
-                                                     navigateToContentView = true
-                                                 },
-                                                 .cancel()
-                                             ]
-                                         )
-                                     }
+                    Button(action: {
+                        showActionSheet = true // Show action sheet on tap
+                    }) {
+                        Text("Sign Out")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .foregroundColor(.red)
+                            .background(Color(hexString: "F2F2F2"))
+                            .cornerRadius(10)
+                            .shadow(radius: 1)
+                            .padding(.horizontal)
+                    }
+                    .actionSheet(isPresented: $showActionSheet) {
+                        ActionSheet(
+                            title: Text("Are you sure?"),
+                            message: Text("By continuing, you will be signed out of your account"),
+                            buttons: [
+                                .default(Text("Yes, Sign out")) {
+                                    navigateToContentView = true // Trigger the full screen cover
+                                },
+                                .cancel()
+                            ]
+                        )
+                    }
+                    .fullScreenCover(isPresented: $navigateToContentView) {
+                        ContentView().navigationBarBackButtonHidden(true)
+                    }
+
 
                                      // Hidden NavigationLink to trigger navigation
                                      NavigationLink(
