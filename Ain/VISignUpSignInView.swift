@@ -419,11 +419,13 @@ struct ViStepByStepSignUpView: View {
                         if let error = error {
                             alertMessage = "Error linking with guardian: \(error.localizedDescription)"
                         } else {
-                            alertMessage = "Registration successful. Please verify your email."
-                                showAlert = true
-                            selectedTab = "Sign In"
-                        }
-                    }
+                            // Redirect to Sign In tab after showing success alert
+                                               DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                                   // Switch to Sign In after a short delay
+                                                   selectedTab = "Sign In"
+                                               }
+                                           }
+                                       }
                 } else {
                     alertMessage = "Guardian not found with provided unique code."
                     showAlert = true
