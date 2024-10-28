@@ -15,6 +15,12 @@ struct SignUpSignInView: View {
                     .frame(height: 40)
                     .edgesIgnoringSafeArea(.top)
                 
+                // Light gray text on top of the page
+                               Text("Guardian")
+                                   .font(.headline)
+                                   .foregroundColor(Color.gray.opacity(0.7)) // Light gray color
+                                   .padding(.top, 10) // Adjust padding as needed
+                      
                 // Segmented control for Sign Up and Sign In
                 HStack(spacing: 0) {
                     Button(action: { selectedTab = "Sign up" }) {
@@ -77,17 +83,17 @@ struct StepByStepSignUpView: View {
         VStack(spacing: 20) {
             if step == 1 {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("First Name")
+                    Text("First Name*")
                         .font(.subheadline)
                         .foregroundColor(.gray)
-                    CustomTextField(placeholder: "First Name", text: $firstName)
+                    CustomTextField(placeholder: "Enter your First Name", text: $firstName)
                 }
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Last Name")
+                    Text("Last Name*")
                         .font(.subheadline)
                         .foregroundColor(.gray)
-                    CustomTextField(placeholder: "Last Name", text: $lastName)
+                    CustomTextField(placeholder: "Enter your Last Name", text: $lastName)
                 }
                 
                 HStack(spacing: 10) {
@@ -109,17 +115,17 @@ struct StepByStepSignUpView: View {
                 
             } else if step == 2 {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Email")
+                    Text("Email*")
                         .font(.subheadline)
                         .foregroundColor(.gray)
-                    CustomTextField(placeholder: "Email", text: $email)
+                    CustomTextField(placeholder: "Enter your Email", text: $email)
                 }
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Confirm Email")
+                    Text("Confirm Email*")
                         .font(.subheadline)
                         .foregroundColor(.gray)
-                    CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
+                    CustomTextField(placeholder: "Confirm your Email", text: $confirmEmail)
                 }
                 
                 HStack(spacing: 10) {
@@ -153,17 +159,17 @@ struct StepByStepSignUpView: View {
                 
             } else if step == 3 {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Password")
+                    Text("Password*")
                         .font(.subheadline)
                         .foregroundColor(.gray)
-                    CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+                    CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
                 }
                 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Confirm Password")
+                    Text("Confirm Password*")
                         .font(.subheadline)
                         .foregroundColor(.gray)
-                    CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
+                    CustomTextField(placeholder: "Confirm your Password", text: $confirmPassword, isSecure: true)
                 }
                 
                 HStack(spacing: 10) {
@@ -437,17 +443,17 @@ struct SignInView: View {
     var body: some View {
         VStack(spacing: 20) {
                    VStack(alignment: .leading, spacing: 5) {
-                       Text("Email")
+                       Text("Email*")
                            .font(.subheadline)
                            .foregroundColor(.gray)
-                       CustomTextField(placeholder: "Email", text: $email)
+                       CustomTextField(placeholder: "Enter your Email", text: $email)
                    }
                    
                    VStack(alignment: .leading, spacing: 5) {
-                       Text("Password")
+                       Text("Password*")
                            .font(.subheadline)
                            .foregroundColor(.gray)
-                       CustomTextField(placeholder: "Password", text: $password, isSecure: true)
+                       CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
                    }
                    
                    Button(action: signIn) {
