@@ -195,7 +195,7 @@ struct StepByStepSignUpView: View {
         }
 
         .alert(isPresented: $showAlert) {
-            Alert(title: Text("Success"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            Alert(title: Text("alert"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
 
         .padding(.horizontal)
