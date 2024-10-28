@@ -197,22 +197,34 @@ struct SettingsView: View {
                          }
                      }
                      
-                     private func fetchUserData() {
-                         let db = Firestore.firestore()
-                         if let user = Auth.auth().currentUser {
-                             db.collection("Guardian").document(user.uid).getDocument { (document, error) in
-                                 if let document = document, document.exists {
-                                     let firstName = document.data()?["firstName"] as? String ?? ""
-                                     let lastName = document.data()?["lastName"] as? String ?? ""
-                                     userName = "\(firstName) \(lastName)"
-                                 } else {
-                                     userName = "Error fetching name: \(error?.localizedDescription ?? "Unknown error")"
-                                 }
-                             }
-                         } else {
-                             userName = "User not logged in."
-                         }
-                     }
+    private func fetchUserData() {
+        let db = Firestore.firestore()
+        guard let user = Auth.auth().currentUser else {
+            userName = "User not logged in."
+            return
+        }
+
+        // Check if user is a Guardian
+        db.collection("Guardian").document(user.uid).getDocument { (document, error) in
+            if let document = document, document.exists {
+                let firstName = document.data()?["firstName"] as? String ?? ""
+                let lastName = document.data()?["lastName"] as? String ?? ""
+                userName = "\(firstName) \(lastName)"
+            } else {
+                // If not a Guardian, check if user is Visually Impaired
+                db.collection("VisuallyImpaired").document(user.uid).getDocument { (document, error) in
+                    if let document = document, document.exists {
+                        let firstName = document.data()?["firstName"] as? String ?? ""
+                        let lastName = document.data()?["lastName"] as? String ?? ""
+                        userName = "\(firstName) \(lastName)"
+                    } else {
+                        userName = "Error fetching name: \(error?.localizedDescription ?? "User type not found")"
+                    }
+                }
+            }
+        }
+    }
+
                  }
 
     // private func signOut() {
