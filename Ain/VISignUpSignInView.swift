@@ -79,7 +79,7 @@ struct ViStepByStepSignUpView: View {
                     CustomTextField(placeholder: "First Name", text: $firstName)
                 }
                 .padding(.horizontal)
-
+                
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Last Name")
                         .font(.subheadline)
@@ -110,7 +110,7 @@ struct ViStepByStepSignUpView: View {
                     CustomTextField(placeholder: "Email", text: $email)
                 }
                 .padding(.horizontal)
-
+                
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Confirm Email")
                         .font(.subheadline)
@@ -118,7 +118,7 @@ struct ViStepByStepSignUpView: View {
                     CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
                 }
                 .padding(.horizontal)
-
+                
                 HStack(spacing: 10) {
                     Button(action: { step = 1 }) {
                         HStack {
@@ -160,7 +160,7 @@ struct ViStepByStepSignUpView: View {
                     CustomTextField(placeholder: "Password", text: $password, isSecure: true)
                 }
                 .padding(.horizontal)
-
+                
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Confirm Password")
                         .font(.subheadline)
@@ -176,7 +176,7 @@ struct ViStepByStepSignUpView: View {
                     CustomTextField(placeholder: "Unique Code", text: $uniqueCode)
                 }
                 .padding(.horizontal)
-
+                
                 HStack(spacing: 10) {
                     Button(action: { step = 2 }) {
                         HStack {
@@ -208,7 +208,7 @@ struct ViStepByStepSignUpView: View {
             }
         }
         .alert(isPresented: $showAlert) {
-            Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+            Alert(title: Text("Success"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
         .padding(.horizontal)
         .overlay(
@@ -236,7 +236,9 @@ struct ViStepByStepSignUpView: View {
                             .multilineTextAlignment(.center)
                             .foregroundColor(.white)
                             .padding(.horizontal)
+                      
                     }
+                    
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.black.opacity(0.4).edgesIgnoringSafeArea(.all))
                 }
