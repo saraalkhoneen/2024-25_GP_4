@@ -54,6 +54,7 @@ class CameraManager: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private var videoOutput = AVCaptureMovieFileOutput()
     private var outputURL: URL?
+    private let speechSynthesizer = AVSpeechSynthesizer() // Initialize the synthesizer
     
     func configure() {
         session.beginConfiguration()
@@ -132,6 +133,12 @@ class CameraManager: NSObject, ObservableObject {
             }
         }
     }
+    
+    private func announceRecordingEnd() {
+        let utterance = AVSpeechUtterance(string: "Recording has ended.")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        speechSynthesizer.speak(utterance)
+    }
 }
 
 extension CameraManager: AVCaptureFileOutputRecordingDelegate {
@@ -142,6 +149,9 @@ extension CameraManager: AVCaptureFileOutputRecordingDelegate {
         }
         
         print("Recording finished successfully. Saving to Firebase...")
+        
+        // Announce that recording has ended
+        announceRecordingEnd()
         
         // Verify the file exists before uploading
         if FileManager.default.fileExists(atPath: fileURL.path) {
