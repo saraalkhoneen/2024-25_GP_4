@@ -2,7 +2,6 @@ import SwiftUI
 import AVFoundation
 import Firebase
 import FirebaseStorage
-import FirebaseFirestore
 
 struct VisuallyImpairedView: View {
     var body: some View {
@@ -63,6 +62,7 @@ class CameraManager: NSObject, ObservableObject {
         guard let backCamera = AVCaptureDevice.default(for: .video),
               let input = try? AVCaptureDeviceInput(device: backCamera) else {
             print("Error: Unable to access the back camera!")
+            session.commitConfiguration()
             return
         }
         
@@ -70,12 +70,16 @@ class CameraManager: NSObject, ObservableObject {
             session.addInput(input)
         } else {
             print("Error: Couldn't add camera input.")
+            session.commitConfiguration()
+            return
         }
         
         if session.canAddOutput(videoOutput) {
             session.addOutput(videoOutput)
         } else {
             print("Error: Couldn't add video output.")
+            session.commitConfiguration()
+            return
         }
         
         session.commitConfiguration()
@@ -105,43 +109,26 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     private func uploadToFirebase(fileURL: URL) {
-        let storage = Storage.storage()
-        let storageRef = storage.reference().child("Guardian/videos/\(UUID().uuidString).mov") // Store in Guardian collection
+        let storage = Storage.storage(url: "gs://ain-5ee1b.appspot.com") // Your custom bucket
+        let storageRef = storage.reference().child("videos/\(UUID().uuidString).mov")
 
         storageRef.putFile(from: fileURL, metadata: nil) { metadata, error in
             if let error = error {
                 print("Error uploading video: \(error.localizedDescription)")
                 return
             }
+
+            print("Upload successful!")
             
-            // Retrieve the download URL to store in Firestore
             storageRef.downloadURL { url, error in
                 if let error = error {
                     print("Failed to retrieve download URL: \(error.localizedDescription)")
                     return
                 }
-                
+
                 if let downloadURL = url {
-                    self.saveVideoMetadataToFirestore(url: downloadURL)
+                    print("Video uploaded successfully to: \(downloadURL.absoluteString)")
                 }
-            }
-        }
-    }
-    
-    private func saveVideoMetadataToFirestore(url: URL) {
-        let db = Firestore.firestore()
-        let guardianRef = db.collection("Guardian").document(UUID().uuidString) // Store metadata under Guardian
-
-        let videoData: [String: Any] = [
-            "videoURL": url.absoluteString,
-            "timestamp": Timestamp(date: Date())
-        ]
-
-        guardianRef.setData(videoData) { error in
-            if let error = error {
-                print("Error saving video metadata to Firestore: \(error.localizedDescription)")
-            } else {
-                print("Video metadata successfully saved to Firestore")
             }
         }
     }
@@ -155,7 +142,13 @@ extension CameraManager: AVCaptureFileOutputRecordingDelegate {
         }
         
         print("Recording finished successfully. Saving to Firebase...")
-        uploadToFirebase(fileURL: fileURL) // Updated to upload to Guardian collection
+        
+        // Verify the file exists before uploading
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            uploadToFirebase(fileURL: fileURL)
+        } else {
+            print("Error: File not found at \(fileURL.path)")
+        }
     }
 }
 

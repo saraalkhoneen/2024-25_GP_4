@@ -57,6 +57,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		978741832CDE8FF40056FA03 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		979B12872CB9599A00F0AE9B /* Ain.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ain.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		979B128A2CB9599A00F0AE9B /* AinApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AinApp.swift; sourceTree = "<group>"; };
 		979B128C2CB9599A00F0AE9B /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -140,6 +141,7 @@
 		979B12892CB9599A00F0AE9B /* Ain */ = {
 			isa = PBXGroup;
 			children = (
+				978741832CDE8FF40056FA03 /* Info.plist */,
 				979B128A2CB9599A00F0AE9B /* AinApp.swift */,
 				979B128C2CB9599A00F0AE9B /* ContentView.swift */,
 				979B12E22CBDB24300F0AE9B /* BackgroundWaveShape.swift */,
@@ -510,6 +512,7 @@
 				DEVELOPMENT_TEAM = 3MMY4G53SX;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Ain/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -539,6 +542,7 @@
 				DEVELOPMENT_TEAM = 3MMY4G53SX;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Ain/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
