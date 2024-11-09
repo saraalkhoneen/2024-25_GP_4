@@ -71,14 +71,12 @@ struct StepByStepSignUpView: View {
     @State private var confirmEmail = ""
     @State private var password = ""
     @State private var confirmPassword = ""
+    @State private var visuallyImpairedEmail = ""
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var isLoading = false
-    
     @State private var signUpSuccess = false
 
-    
-   
     var body: some View {
         VStack(spacing: 20) {
             if step == 1 {
@@ -143,6 +141,17 @@ struct StepByStepSignUpView: View {
                             }
                     CustomTextField(placeholder: "Confirm your Email", text: $confirmEmail)
                 }
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 2) {
+                        Text("Visually Impaired Email")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        Text("*")
+                            .foregroundColor(.red)
+                    }
+                        CustomTextField(placeholder: "Enter visually impaired's Email", text: $visuallyImpairedEmail)
+                    
+                }
                 
                 HStack(spacing: 10) {
                     Button(action: { step = 1 }) {
@@ -158,7 +167,7 @@ struct StepByStepSignUpView: View {
                     }
                     .disabled(isLoading)
                     
-                    Button(action: validateEmail) {
+                    Button(action: validateEmails) {
                         HStack {
                             Text("Next")
                             Image(systemName: "chevron.right")
@@ -288,50 +297,85 @@ struct StepByStepSignUpView: View {
     }
 
 
-    private func validateEmail() {
-        guard !email.isEmpty, !confirmEmail.isEmpty else {
-            alertMessage = "Please fill in both email fields."
-            showAlert = true
-            return
+    private func validateEmails() {
+            guard !email.isEmpty, !confirmEmail.isEmpty, !visuallyImpairedEmail.isEmpty else {
+                alertMessage = "Please fill in all email fields."
+                showAlert = true
+                return
+            }
+            
+            guard email == confirmEmail else {
+                alertMessage = "The email addresses do not match."
+                showAlert = true
+                return
+            }
+            
+            guard email != visuallyImpairedEmail else {
+                alertMessage = "Guardian email and visually impaired email must be different."
+                showAlert = true
+                return
+            }
+            
+        // Separate checks for valid email format
+            guard email.contains("@"), isValidEmail(email) else {
+                alertMessage = "Please enter a valid guardian email address."
+                showAlert = true
+                return
+            }
+            
+            guard visuallyImpairedEmail.contains("@"), isValidEmail(visuallyImpairedEmail) else {
+                alertMessage = "Please enter a valid visually impaired email address."
+                showAlert = true
+                return
+            }
+            
+        checkEmailExists(email, visuallyImpairedEmail: visuallyImpairedEmail)
+
         }
-        
-        guard email.contains("@"), isValidEmail(email) else {
-            alertMessage = "Please enter a valid email address."
-            showAlert = true
-            return
-        }
-        
-        guard email == confirmEmail else {
-            alertMessage = "The email addresses do not match."
-            showAlert = true
-            return
-        }
-        
-        checkEmailExists(email)
-    }
 
     private func isValidEmail(_ email: String) -> Bool {
         let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}"
         return NSPredicate(format: "SELF MATCHES %@", emailRegex).evaluate(with: email)
     }
     
-    private func checkEmailExists(_ email: String) {
-        isLoading = true
-        Firestore.firestore().collection("Guardian")
-            .whereField("email", isEqualTo: email)
-            .getDocuments { querySnapshot, error in
-                isLoading = false
-                if let error = error {
-                    alertMessage = "Error checking email: \(error.localizedDescription)"
-                    showAlert = true
-                } else if let documents = querySnapshot?.documents, !documents.isEmpty {
-                    alertMessage = "Email is already registered."
-                    showAlert = true
-                } else {
-                    step = 3
+        private func checkEmailExists(_ email: String, visuallyImpairedEmail: String) {
+            isLoading = true
+            
+            // Query to check if the guardian email exists
+            Firestore.firestore().collection("Guardian")
+                .whereField("email", isEqualTo: email)
+                .getDocuments { querySnapshot, error in
+                    if let error = error {
+                        self.isLoading = false
+                        self.alertMessage = "Error checking guardian email: \(error.localizedDescription)"
+                        self.showAlert = true
+                        return
+                    } else if let documents = querySnapshot?.documents, !documents.isEmpty {
+                        self.isLoading = false
+                        self.alertMessage = "Guardian email is already registered."
+                        self.showAlert = true
+                        return
+                    }
+                    
+                    // If guardian email is unique, proceed to check the visually impaired email
+                    Firestore.firestore().collection("Guardian")
+                        .whereField("visuallyImpairedEmail", isEqualTo: visuallyImpairedEmail)
+                        .getDocuments { visuallyImpairedSnapshot, visuallyImpairedError in
+                            self.isLoading = false
+                            if let visuallyImpairedError = visuallyImpairedError {
+                                self.alertMessage = "Error checking visually impaired email: \(visuallyImpairedError.localizedDescription)"
+                                self.showAlert = true
+                            } else if let visuallyImpairedDocs = visuallyImpairedSnapshot?.documents, !visuallyImpairedDocs.isEmpty {
+                                self.alertMessage = "Visually impaired email is already registered."
+                                self.showAlert = true
+                            } else {
+                                // If both emails are unique, proceed to the next step
+                                self.step = 3
+                            }
+                        }
                 }
-            }
-    }
+        }
+
 
     private func register() {
         guard !password.isEmpty, !confirmPassword.isEmpty else {
@@ -416,7 +460,8 @@ struct StepByStepSignUpView: View {
                 "firstName": firstName,
                 "lastName": lastName,
                 "email": email,
-                "uniqueCode": uniqueCode
+                "uniqueCode": uniqueCode,
+                "visuallyImpairedEmail": visuallyImpairedEmail
             ]) { error in
                 if let error = error {
                     alertMessage = "Error saving user info: \(error.localizedDescription)"
