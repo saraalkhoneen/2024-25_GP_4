@@ -76,6 +76,8 @@ struct StepByStepSignUpView: View {
     @State private var alertMessage = ""
     @State private var isLoading = false
     @State private var signUpSuccess = false
+    @State private var showInfoAlert = false
+    
 
     var body: some View {
         VStack(spacing: 20) {
@@ -190,6 +192,15 @@ struct StepByStepSignUpView: View {
                         .foregroundColor(.gray)
                         Text("*")
                                     .foregroundColor(.red)
+                        // Info Button with Alert
+                                           Button(action: {
+                                               showInfoAlert.toggle()
+                                           }) {
+                                               Image(systemName: "questionmark.circle")
+                                                   .foregroundColor(Color(hexString: "3C6E71"))
+                                                   .font(.title2)
+                                           }
+                        
                             }
                     CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
                 }
@@ -236,11 +247,12 @@ struct StepByStepSignUpView: View {
                 .padding(.horizontal)
             }
         }
+        
 
         .alert(isPresented: $showAlert) {
             Alert(title: Text("alert"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
-
+  
         .padding(.horizontal)
         .overlay(
             Group {
