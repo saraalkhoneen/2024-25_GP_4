@@ -254,7 +254,7 @@ struct StepByStepSignUpView: View {
                    }
                )
                .overlay(
-                   // Success overlay that appears on successful registration من هنا والي ف،قه يتحكم برساله نجاح الدخول 
+                   // Success overlay that appears on successful registration من هنا والي ف،قه يتحكم برساله نجاح الدخول
                 Group {
                                if signUpSuccess {
                                    VStack(spacing: 10) {
@@ -512,55 +512,50 @@ struct SignInView: View {
     @State private var alertMessage = ""
     @State private var isLoading = false
     @State private var isSignedIn = false
+    @State private var showPasswordReset = false
 
     var body: some View {
         VStack(spacing: 20) {
-                   VStack(alignment: .leading, spacing: 5) {
-                       HStack(spacing: 2) {
-                       Text("Email")
-                           .font(.subheadline)
-                           .foregroundColor(.gray)
-                           Text("*")
-                                      .foregroundColor(.red)
-                              }
-                       CustomTextField(placeholder: "Enter your Email", text: $email)
-                   }
-                   
-                   VStack(alignment: .leading, spacing: 5) {
-                       HStack(spacing: 2) {
-                       Text("Password")
-                           .font(.subheadline)
-                           .foregroundColor(.gray)
-                           Text("*")
-                                      .foregroundColor(.red)
-                              }
-                       CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
-                   }
-                   
-                   Button(action: signIn) {
-                       HStack {
-                           Text("Sign In")
-                           Image(systemName: "chevron.right")
-                       }
-                           .frame(maxWidth: .infinity)
-                           .padding()
-                           .background(Color(hexString: "D95F4B"))
-                           .foregroundColor(.white)
-                           .cornerRadius(12)
-                   }
-                   .padding(.horizontal)
-                   .disabled(isLoading)
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Email")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                CustomTextField(placeholder: "Enter your Email", text: $email)
+            }
 
-                   NavigationLink(destination: GuardianView().navigationBarBackButtonHidden(true), isActive: $isSignedIn) {
-                       EmptyView()
-                   }
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Password")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
+            }
 
-                   Button(action: resetPassword) {
-                       Text("Forgot Password?")
-                           .foregroundColor(Color.blue)
-                   }
-                   .padding(.top, 20)
-               }
+            Button(action: signIn) {
+                Text("Sign In")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(hexString: "D95F4B"))
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+            }
+            .padding(.horizontal)
+            .disabled(isLoading)
+
+            NavigationLink(destination: GuardianView().navigationBarBackButtonHidden(true), isActive: $isSignedIn) {
+                EmptyView()
+            }
+
+            Button(action: {
+                showPasswordReset = true
+            }) {
+                Text("Forgot Password?")
+                    .foregroundColor(Color.blue)
+            }
+            .padding(.top, 20)
+            .sheet(isPresented: $showPasswordReset) {
+                PasswordResetView()
+            }
+        }
         .padding()
         .alert(isPresented: $showAlert) {
             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
@@ -597,17 +592,60 @@ struct SignInView: View {
             if let error = error {
                 alertMessage = error.localizedDescription
                 showAlert = true
-            } else if let user = Auth.auth().currentUser {
-                if user.isEmailVerified {
-                
-                    isSignedIn = true
-                } else {
-                    alertMessage = "Please verify your email before signing in."
-                    showAlert = true
-                    try? Auth.auth().signOut()
-                }
+            } else if let user = Auth.auth().currentUser, user.isEmailVerified {
+                isSignedIn = true
+            } else {
+                alertMessage = "Please verify your email before signing in."
+                showAlert = true
+                try? Auth.auth().signOut()
             }
         }
+    }
+}
+
+// MARK: - Password Reset View
+struct PasswordResetView: View {
+    @State private var email = ""
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    @State private var isLoading = false
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Reset Password")
+                .font(.headline)
+                .padding(.top)
+
+            CustomTextField(placeholder: "Enter your email", text: $email)
+
+            Button(action: resetPassword) {
+                Text("Send Reset Link")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(hexString: "D95F4B"))
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+            }
+            .disabled(isLoading)
+            .padding(.horizontal)
+
+            Spacer()
+        }
+        .padding()
+        .alert(isPresented: $showAlert) {
+            Alert(title: Text("Password Reset"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+        }
+        .overlay(
+            Group {
+                if isLoading {
+                    Color.black.opacity(0.4)
+                        .edgesIgnoringSafeArea(.all)
+                    ProgressView("Loading...")
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
+                }
+            }
+        )
     }
 
     func resetPassword() {
@@ -617,35 +655,19 @@ struct SignInView: View {
             return
         }
 
+        isLoading = true
         Auth.auth().sendPasswordReset(withEmail: email) { error in
+            isLoading = false
             alertMessage = error?.localizedDescription ?? "Password reset email sent. Please check your inbox."
             showAlert = true
         }
     }
-
-    // Re-authenticate function
-    func reAuthenticateUser() {
-        // Make sure to sign out the user if there's a previous session
-        do {
-            try Auth.auth().signOut()
-        } catch let signOutError {
-            print("Error signing out: \(signOutError)")
-        }
-
-        // Re-authenticate by asking the user to sign in again
-        Auth.auth().signIn(withEmail: email, password: password) { result, error in
-            if let error = error {
-                alertMessage = "Error signing in: \(error.localizedDescription)"
-                showAlert = true
-            } else {
-                alertMessage = "User signed in successfully"
-                showAlert = true
-            }
-        }
-    }
 }
 
+// Custom components, helper functions, and extensions would be here...
+// such as CustomTextField, TopCurveShape, and Color hexString extension
 
+// MARK: - CustomTextField
 struct CustomTextField: View {
     var placeholder: String
     @Binding var text: String
@@ -673,16 +695,15 @@ struct CustomTextField: View {
                     .padding(.trailing, 10)
                 }
             }
-            .frame(height: 55) // Set a consistent height for the text field box
+            .frame(height: 55)
             .background(Color.gray.opacity(0.2))
             .cornerRadius(8)
         }
-        .padding(.horizontal) // Add padding outside the ZStack to keep the field size consistent
+        .padding(.horizontal)
     }
 }
 
-
-// Custom shape for the top curve
+// MARK: - TopCurveShape
 struct TopCurveShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
@@ -696,7 +717,7 @@ struct TopCurveShape: Shape {
     }
 }
 
-// Extension to use hex colors
+// MARK: - Color Hex Extension
 extension Color {
     init(hexString: String) {
         let hex = hexString.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -717,7 +738,6 @@ extension Color {
     }
 }
 
-// CornerRadius extension to round specific corners
 extension View {
     func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
         clipShape(RoundedCorner(radius: radius, corners: corners))
@@ -743,5 +763,3 @@ struct SignUpSignInView_Previews: PreviewProvider {
         SignUpSignInView()
     }
 }
-
-

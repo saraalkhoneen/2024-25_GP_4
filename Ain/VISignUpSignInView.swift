@@ -157,8 +157,28 @@ struct ViSignUpView: View {
             Alert(title: Text("Alert"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
         .padding(.horizontal)
-        .overlay(loadingOverlay)
-    }
+               .overlay(loadingOverlay)
+               .overlay(
+                   Group {
+                       if signUpSuccess {
+                           VStack(spacing: 10) {
+                               Image(systemName: "checkmark.circle.fill")
+                                   .font(.system(size: 60))
+                                   .foregroundColor(.green)
+                               Text("Registration Successful!")
+                                   .font(.headline)
+                                   .foregroundColor(.white)
+                               Text("Please check your inbox for email verification,\nthen sign in.")
+                                   .multilineTextAlignment(.center)
+                                   .foregroundColor(.white)
+                                   .padding(.horizontal)
+                           }
+                           .frame(maxWidth: .infinity, maxHeight: .infinity)
+                           .background(Color.black.opacity(0.4).edgesIgnoringSafeArea(.all))
+                       }
+                   }
+               )
+           }
     
     private func validateStep1Inputs() {
         if firstName.isEmpty && lastName.isEmpty {
@@ -242,17 +262,29 @@ struct ViSignUpView: View {
     }
 
     private func registerUser(guardianDocID: String) {
-        isLoading = true
-        Auth.auth().createUser(withEmail: email, password: "DefaultPass123!") { result, error in
-            self.isLoading = false
-            if let error = error {
-                self.alertMessage = error.localizedDescription
-                self.showAlert = true
-            } else if let user = result?.user {
-                self.saveUserToFirestore(user: user, guardianDocID: guardianDocID)
-            }
-        }
-    }
+           isLoading = true
+           Auth.auth().createUser(withEmail: email, password: "DefaultPass123!") { result, error in
+               self.isLoading = false
+               if let error = error {
+                   self.alertMessage = error.localizedDescription
+                   self.showAlert = true
+               } else if let user = result?.user {
+                   user.sendEmailVerification { error in
+                       if let error = error {
+                           self.alertMessage = "Failed to send verification email: \(error.localizedDescription)"
+                           self.showAlert = true
+                       } else {
+                           self.signUpSuccess = true // Show success overlay
+                           DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                               self.selectedTab = "Sign In"
+                               self.signUpSuccess = false
+                           }
+                           self.saveUserToFirestore(user: user, guardianDocID: guardianDocID)
+                       }
+                   }
+               }
+           }
+       }
     
     private func saveUserToFirestore(user: FirebaseAuth.User, guardianDocID: String) {
         let db = Firestore.firestore()
@@ -377,7 +409,13 @@ struct ViSignInView: View {
                     if let error = error {
                         self.alertMessage = error.localizedDescription
                         self.showAlert = true
+                    } else if let user = authResult?.user, !user.isEmailVerified {
+                        // Email not verified, show alert and sign out
+                        self.alertMessage = "Please verify your email before signing in."
+                        self.showAlert = true
+                        try? Auth.auth().signOut()
                     } else {
+                        // Email verified, proceed to main view
                         self.navigateToMainView = true
                     }
                 }
@@ -387,6 +425,7 @@ struct ViSignInView: View {
             }
         }
     }
+
     
     private var loadingOverlay: some View {
         Group {
@@ -407,4 +446,5 @@ struct VISignUpSignInView_Previews: PreviewProvider {
         VISignUpSignInView()
     }
 }
+
 
