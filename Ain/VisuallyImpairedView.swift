@@ -96,6 +96,7 @@ class CameraManager: NSObject, ObservableObject {
         }
         
         if !videoOutput.isRecording {
+            announceRecordingStart() // Announce recording start
             videoOutput.startRecording(to: outputURL, recordingDelegate: self)
             DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
                 self.stopRecording()
@@ -109,8 +110,20 @@ class CameraManager: NSObject, ObservableObject {
         }
     }
     
+    private func announceRecordingStart() {
+        let utterance = AVSpeechUtterance(string: "Recording has started.")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        speechSynthesizer.speak(utterance)
+    }
+    
+    private func announceRecordingEnd() {
+        let utterance = AVSpeechUtterance(string: "Recording has ended.")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        speechSynthesizer.speak(utterance)
+    }
+    
     private func uploadToFirebase(fileURL: URL) {
-        let storage = Storage.storage(url: "gs://ain-5ee1b.appspot.com") // Your custom bucket
+        let storage = Storage.storage(url: "gs://ain-5ee1b.firebasestorage.app") // Your custom bucket
         let storageRef = storage.reference().child("videos/\(UUID().uuidString).mov")
 
         storageRef.putFile(from: fileURL, metadata: nil) { metadata, error in
@@ -132,12 +145,6 @@ class CameraManager: NSObject, ObservableObject {
                 }
             }
         }
-    }
-    
-    private func announceRecordingEnd() {
-        let utterance = AVSpeechUtterance(string: "Recording has ended.")
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        speechSynthesizer.speak(utterance)
     }
 }
 
@@ -183,3 +190,4 @@ struct VisuallyImpairedView_Previews: PreviewProvider {
         VisuallyImpairedView()
     }
 }
+

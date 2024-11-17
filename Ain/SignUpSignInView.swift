@@ -77,7 +77,8 @@ struct StepByStepSignUpView: View {
     @State private var isLoading = false
     @State private var signUpSuccess = false
     @State private var showInfoAlert = false
-    
+    @State private var showHintAlert = false // State for displaying the hint alert
+
 
     var body: some View {
         VStack(spacing: 20) {
@@ -186,24 +187,41 @@ struct StepByStepSignUpView: View {
                 
             } else if step == 3 {
                 VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 2) {
-                    Text("Password")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
+                    HStack {
+                        Text("Password")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
                         Text("*")
-                                    .foregroundColor(.red)
-                        // Info Button with Alert
-                                           Button(action: {
-                                               showInfoAlert.toggle()
-                                           }) {
-                                               Image(systemName: "questionmark.circle")
-                                                   .foregroundColor(Color(hexString: "3C6E71"))
-                                                   .font(.title2)
-                                           }
-                        
-                            }
+                            .foregroundColor(.red)
+
+                        // Hint button for password requirements
+                        Button(action: {
+                            showHintAlert.toggle() // Toggle the alert state
+                        }) {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundColor(Color(hexString: "3C6E71"))
+                                .font(.title2)
+                        }
+                        .buttonStyle(PlainButtonStyle()) // Ensure no default button styles interfere
+                    }
+
                     CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
                 }
+                .alert(isPresented: $showHintAlert) {
+                    Alert(
+                        title: Text("Password Requirements"),
+                        message: Text("""
+                        Your password must contain:
+                        - At least 8 characters
+                        - One uppercase letter
+                        - One lowercase letter
+                        - One number
+                        - One special character (e.g., !@#$%)
+                        """),
+                        dismissButton: .default(Text("OK"))
+                    )
+                }
+
                 
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 2) {
