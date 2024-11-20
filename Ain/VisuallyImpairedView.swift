@@ -98,7 +98,7 @@ class CameraManager: NSObject, ObservableObject {
         if !videoOutput.isRecording {
             announceRecordingStart() // Announce recording start
             videoOutput.startRecording(to: outputURL, recordingDelegate: self)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                 self.stopRecording()
             }
         }
@@ -111,20 +111,20 @@ class CameraManager: NSObject, ObservableObject {
     }
     
     private func announceRecordingStart() {
-        let utterance = AVSpeechUtterance(string: "Recording has started.")
+        let utterance = AVSpeechUtterance(string: "Yousra camera has started.")
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         speechSynthesizer.speak(utterance)
     }
     
     private func announceRecordingEnd() {
-        let utterance = AVSpeechUtterance(string: "Recording has ended.")
+        let utterance = AVSpeechUtterance(string: "Yousra Recording has ended.")
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         speechSynthesizer.speak(utterance)
     }
     
     private func uploadToFirebase(fileURL: URL) {
         let storage = Storage.storage(url: "gs://ain-5ee1b.firebasestorage.app") // Your custom bucket
-        let storageRef = storage.reference().child("videos/\(UUID().uuidString).mov")
+        let storageRef = storage.reference().child("videos/\(UUID().uuidString).mp4")
 
         storageRef.putFile(from: fileURL, metadata: nil) { metadata, error in
             if let error = error {
