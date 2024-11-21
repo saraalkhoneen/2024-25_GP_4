@@ -6,7 +6,21 @@
     <array>
         <dict/>
     </array>
+    
+    <!-- Camera Usage Description -->
     <key>NSCameraUsageDescription</key>
-    <string>We use the camera to assist visually impaired users by identifying objects.</string>
+    <string>We use the camera to assist visually impaired users by identifying objects and recording videos.</string>
+    
+    <!-- Bluetooth Usage Description -->
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>This app uses Bluetooth to connect to GoPro for recording and remote control.</string>
+    
+    <!-- Photo Library Add Usage Description -->
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>We need access to save recorded videos to your photo library.</string>
+    
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>We use your location to check the connected Wi-Fi network.</string>
+
 </dict>
 </plist>

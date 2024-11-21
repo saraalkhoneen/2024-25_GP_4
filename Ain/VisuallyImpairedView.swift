@@ -33,9 +33,9 @@ struct CameraTabView: View {
             VStack {
                 Spacer()
                 Button(action: {
-                    cameraManager.startRecording()
+                    cameraManager.startLiveStream()
                 }) {
-                    Text("Start Recording")
+                    Text("Start Detection")
                         .padding()
                         .background(Color.red)
                         .foregroundColor(.white)
@@ -52,9 +52,15 @@ struct CameraTabView: View {
 
 class CameraManager: NSObject, ObservableObject {
     let session = AVCaptureSession()
-    private var videoOutput = AVCaptureMovieFileOutput()
-    private var outputURL: URL?
-    private let speechSynthesizer = AVSpeechSynthesizer() // Initialize the synthesizer
+    private let videoOutput = AVCaptureVideoDataOutput()
+    private let speechSynthesizer = AVSpeechSynthesizer()
+    private var roboflowURL: URL?
+    private var lastFrameTime = Date()
+
+    override init() {
+        super.init()
+        configureRoboflow()
+    }
     
     func configure() {
         session.beginConfiguration()
@@ -75,6 +81,7 @@ class CameraManager: NSObject, ObservableObject {
             return
         }
         
+        videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
         if session.canAddOutput(videoOutput) {
             session.addOutput(videoOutput)
         } else {
@@ -86,86 +93,123 @@ class CameraManager: NSObject, ObservableObject {
         session.commitConfiguration()
     }
     
-    func startRecording() {
-        let outputDirectory = FileManager.default.temporaryDirectory
-        outputURL = outputDirectory.appendingPathComponent("\(UUID().uuidString).mov")
-        
-        guard let outputURL = outputURL else {
-            print("Error: Unable to generate output URL.")
+    func startLiveStream() {
+        session.startRunning()
+        announceDetectionStart()
+    }
+    
+    private func configureRoboflow() {
+        // Use the full API endpoint provided by Roboflow
+                    roboflowURL = URL(string: "https://app.roboflow.com/ds/5U8XURyiN4?key=D946GYUpBl")
+    }
+
+    private func processFrame(imageBuffer: CVImageBuffer) {
+        guard let roboflowURL = roboflowURL else {
+            print("Error: Roboflow URL is not configured.")
             return
         }
         
-        if !videoOutput.isRecording {
-            announceRecordingStart() // Announce recording start
-            videoOutput.startRecording(to: outputURL, recordingDelegate: self)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                self.stopRecording()
-            }
+        let ciImage = CIImage(cvImageBuffer: imageBuffer)
+        let uiImage = UIImage(ciImage: ciImage)
+        
+        // Save the frame locally for debugging
+        saveImageForDebugging(uiImage)
+        
+        guard let imageData = uiImage.jpegData(compressionQuality: 0.8) else {
+            print("Error: Failed to encode image as JPEG.")
+            return
         }
-    }
-    
-    func stopRecording() {
-        if videoOutput.isRecording {
-            videoOutput.stopRecording()
-        }
-    }
-    
-    private func announceRecordingStart() {
-        let utterance = AVSpeechUtterance(string: "Yousra camera has started.")
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        speechSynthesizer.speak(utterance)
-    }
-    
-    private func announceRecordingEnd() {
-        let utterance = AVSpeechUtterance(string: "Yousra Recording has ended.")
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        speechSynthesizer.speak(utterance)
-    }
-    
-    private func uploadToFirebase(fileURL: URL) {
-        let storage = Storage.storage(url: "gs://ain-5ee1b.firebasestorage.app") // Your custom bucket
-        let storageRef = storage.reference().child("videos/\(UUID().uuidString).mp4")
-
-        storageRef.putFile(from: fileURL, metadata: nil) { metadata, error in
+        
+        var request = URLRequest(url: roboflowURL)
+        request.httpMethod = "POST"
+        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+        request.httpBody = imageData
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("Error uploading video: \(error.localizedDescription)")
+                print("Error sending frame to Roboflow: \(error.localizedDescription)")
                 return
             }
-
-            print("Upload successful!")
             
-            storageRef.downloadURL { url, error in
-                if let error = error {
-                    print("Failed to retrieve download URL: \(error.localizedDescription)")
-                    return
-                }
-
-                if let downloadURL = url {
-                    print("Video uploaded successfully to: \(downloadURL.absoluteString)")
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                print("Error: Non-200 HTTP response.")
+                return
+            }
+            
+            guard let data = data else {
+                print("Error: No data received.")
+                return
+            }
+            
+            if let rawResponse = String(data: data, encoding: .utf8) {
+                print("Raw Roboflow Response: \(rawResponse)")
+            }
+            
+            guard let jsonResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                print("Failed to parse Roboflow response.")
+                return
+            }
+            
+            self.handleDetectionResult(jsonResponse)
+        }.resume()
+    }
+    
+    private func handleDetectionResult(_ result: [String: Any]) {
+        if let predictions = result["predictions"] as? [[String: Any]] {
+            if predictions.isEmpty {
+                print("Predictions are empty.")
+            } else {
+                for prediction in predictions {
+                    if let label = prediction["class"] as? String {
+                        DispatchQueue.main.async {
+                            self.announceDetectedObject(label)
+                        }
+                    }
                 }
             }
+        } else {
+            print("No 'predictions' key in response.")
+        }
+    }
+    
+    private func announceDetectionStart() {
+        let utterance = AVSpeechUtterance(string: "Starting object detection.")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        DispatchQueue.main.async {
+            self.speechSynthesizer.speak(utterance)
+            print("Voice feedback: \(utterance.speechString)") // Debugging log
+        }
+    }
+    
+    private func announceDetectedObject(_ object: String) {
+        let utterance = AVSpeechUtterance(string: "Detected \(object)")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        DispatchQueue.main.async {
+            self.speechSynthesizer.speak(utterance)
+            print("Voice feedback: \(utterance.speechString)") // Debugging log
+        }
+    }
+    
+    private func saveImageForDebugging(_ image: UIImage) {
+        guard let imageData = image.jpegData(compressionQuality: 1.0) else { return }
+        let filePath = FileManager.default.temporaryDirectory.appendingPathComponent("debug_frame.jpg")
+        do {
+            try imageData.write(to: filePath)
+            print("Debug frame saved to: \(filePath)")
+        } catch {
+            print("Failed to save debug frame: \(error.localizedDescription)")
         }
     }
 }
 
-extension CameraManager: AVCaptureFileOutputRecordingDelegate {
-    func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo fileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        if let error = error {
-            print("Recording error: \(error.localizedDescription)")
-            return
-        }
+extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        let now = Date()
+        if now.timeIntervalSince(lastFrameTime) < 1.0 { return } // Process 1 frame per second
+        lastFrameTime = now
         
-        print("Recording finished successfully. Saving to Firebase...")
-        
-        // Announce that recording has ended
-        announceRecordingEnd()
-        
-        // Verify the file exists before uploading
-        if FileManager.default.fileExists(atPath: fileURL.path) {
-            uploadToFirebase(fileURL: fileURL)
-        } else {
-            print("Error: File not found at \(fileURL.path)")
-        }
+        guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        processFrame(imageBuffer: imageBuffer)
     }
 }
 
