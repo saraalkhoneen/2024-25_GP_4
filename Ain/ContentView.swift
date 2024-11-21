@@ -1,9 +1,25 @@
+import SwiftUICore
 import SwiftUI
-
 struct ContentView: View {
+    @State private var isAuthenticated = false
     @State private var moveGradient = false
 
     var body: some View {
+        Group {
+            if isAuthenticated {
+                // Navigate directly to the main app view if token exists
+                VisuallyImpairedView()
+            } else {
+                // Show the welcome screen for user navigation
+                welcomeScreen
+            }
+        }
+        .onAppear {
+            checkAuthenticationToken()
+        }
+    }
+    
+    private var welcomeScreen: some View {
         NavigationView {
             ZStack {
                 // Moving gradient background
@@ -49,7 +65,7 @@ struct ContentView: View {
                                 .fontWeight(.bold)
                                 .foregroundColor(Color(hex: "#3C6E71"))
                                 .opacity(0.2)
-                            )
+                        )
 
                     Spacer()
 
@@ -99,9 +115,20 @@ struct ContentView: View {
             }
         }
     }
+    
+    private func checkAuthenticationToken() {
+        if let token = KeychainHelper.shared.getToken(forKey: "AuthToken") {
+            print("Token found: \(token)")
+            isAuthenticated = true
+        } else {
+            print("No token found. User needs to log in.")
+            isAuthenticated = false
+        }
+    }
 }
 
-// Custom shape for the top left corner
+// MARK: - Supporting Shapes and Extensions
+
 struct TopLeftCurveShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
@@ -110,11 +137,10 @@ struct TopLeftCurveShape: Shape {
                           control: CGPoint(x: 0, y: 0))
         path.addLine(to: CGPoint(x: 0, y: 0))
         path.closeSubpath()
-        return path;
+        return path
     }
 }
 
-// Custom shape for the bottom right corner
 struct BottomRightCurveShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
@@ -123,11 +149,10 @@ struct BottomRightCurveShape: Shape {
                           control: CGPoint(x: rect.width, y: rect.height))
         path.addLine(to: CGPoint(x: rect.width, y: rect.height))
         path.closeSubpath()
-        return path;
+        return path
     }
 }
 
-// Extension to use hex colors
 extension Color {
     init(hex: String) {
         let scanner = Scanner(string: hex)
@@ -149,4 +174,3 @@ struct ContentView_Previews: PreviewProvider {
         ContentView()
     }
 }
-

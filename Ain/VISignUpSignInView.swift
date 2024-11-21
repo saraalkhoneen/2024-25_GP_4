@@ -5,7 +5,76 @@ import SwiftUI
 import Firebase
 import FirebaseAuth
 import FirebaseFirestore
+import Security
+import Network
 
+
+// MARK: - Keychain Helper
+class KeychainHelper {
+    static let shared = KeychainHelper()
+    
+    private init() {}
+
+    func saveToken(_ token: String, forKey key: String) {
+        guard let tokenData = token.data(using: .utf8) else { return }
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecValueData as String: tokenData,
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        ]
+        
+        SecItemDelete(query as CFDictionary)
+        SecItemAdd(query as CFDictionary, nil)
+    }
+    
+    func getToken(forKey key: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key,
+            kSecReturnData as String: kCFBooleanTrue!,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        var dataTypeRef: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
+        
+        if status == errSecSuccess, let data = dataTypeRef as? Data {
+            return String(data: data, encoding: .utf8)
+        }
+        return nil
+    }
+    
+    func deleteToken(forKey key: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: key
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+}
+
+// MARK: - User Profile Cache
+class UserProfileCache {
+    static let shared = UserProfileCache()
+    
+    private let profileKey = "UserProfile"
+    
+    func saveProfile(_ profile: [String: Any]) {
+        UserDefaults.standard.set(profile, forKey: profileKey)
+    }
+    
+    func getProfile() -> [String: Any]? {
+        return UserDefaults.standard.dictionary(forKey: profileKey)
+    }
+    
+    func deleteProfile() {
+        UserDefaults.standard.removeObject(forKey: profileKey)
+    }
+}
+
+// MARK: - VISignUpSignInView
 struct VISignUpSignInView: View {
     @State private var selectedTab: String = "Sign Up"
     
@@ -60,6 +129,7 @@ struct VISignUpSignInView: View {
         }
     }
 }
+
 struct ViStepByStepSignUpView: View {
     @Binding var selectedTab: String
     @State private var step = 1
@@ -334,12 +404,13 @@ struct ViStepByStepSignUpView: View {
             showAlert = true
             return
         }
-
+        print("Validating password: \(password)")
+        
         // Password validation criteria
-        let uppercaseRegex = ".[A-Z]+."
-        let lowercaseRegex = ".[a-z]+."
-        let numberRegex = ".[0-9]+."
-        let specialCharacterRegex = ".[!@#$%^&]+.*" // Adjusted regex for special characters
+        let uppercaseRegex = ".*[A-Z].*"
+        let lowercaseRegex = ".*[a-z].*"
+        let numberRegex = ".*[0-9].*"
+        let specialCharacterRegex = ".*[!@#$%^&*].*" 
 
         guard NSPredicate(format: "SELF MATCHES %@", uppercaseRegex).evaluate(with: password) else {
             alertMessage = "Password must include at least one uppercase letter."
@@ -480,7 +551,7 @@ struct ViStepByStepSignUpView: View {
     }
 }
 
-// Sign In View
+// MARK: - ViSignInView
 struct ViSignInView: View {
     @State private var email = ""
     @State private var password = ""
@@ -491,122 +562,134 @@ struct ViSignInView: View {
     @State private var navigateToMainView = false
 
     var body: some View {
-           VStack(spacing: 20) {
-               VStack(alignment: .leading, spacing: 5) {
-                   HStack(spacing: 2) {
-                       Text("Email")
-                           .font(.subheadline)
-                           .foregroundColor(.gray)
-                       Text("*")
-                                  .foregroundColor(.red)
-                   }
-                   CustomTextField(placeholder: "Ender your Email", text: $email)
-               }
-               .padding(.horizontal)
-               
-               VStack(alignment: .leading, spacing: 5) {
-                   HStack(spacing: 2) {
-                       Text("Password")
-                           .font(.subheadline)
-                           .foregroundColor(.gray)
-                       Text("*")
-                                  .foregroundColor(.red)
-                   }
-                   CustomTextField(placeholder: "Ender your Password", text: $password, isSecure: true)
-               }
-               .padding(.horizontal)
-               
-               VStack(alignment: .leading, spacing: 5) {
-                   HStack(spacing: 2) {
-                   Text("Unique Code")
-                       .font(.subheadline)
-                       .foregroundColor(.gray)
-                       Text("*")
-                                  .foregroundColor(.red)
-                   }
-                   CustomTextField(placeholder: "Ender Guardian's Unique Code", text: $uniqueCode)
-               }
-               .padding(.horizontal)
-               
-               Button(action: signInUser) {
-                   HStack {
-                       Text("Sign In")
-                       Image(systemName: "chevron.right")
-                   }
-                   
-                   
-                       .frame(maxWidth: .infinity)
-                       .padding()
-                       .background(Color(hexString: "D95F4B"))
-                       .foregroundColor(.white)
-                       .cornerRadius(12)
-               }
-               .padding(.horizontal)
-               .disabled(isLoading)
-               
-               Button(action: resetPassword) {
-                   Text("Reset Password")
-                       .foregroundColor(.blue)
-               }
-               .padding(.top, 20)
-               
-               NavigationLink(destination: VisuallyImpairedView().navigationBarBackButtonHidden(true), isActive: $navigateToMainView) { EmptyView() }
-           }
-           .alert(isPresented: $showAlert) {
-               Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-           }
-           .padding()
-           .overlay(loadingOverlay)
-       }
+        VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Email")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                CustomTextField(placeholder: "Enter your Email", text: $email)
+            }
+            .padding(.horizontal)
+            
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Password")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
+            }
+            .padding(.horizontal)
+            
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Unique Code")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                CustomTextField(placeholder: "Enter Guardian's Unique Code", text: $uniqueCode)
+            }
+            .padding(.horizontal)
+            
+            Button(action: signInUser) {
+                HStack {
+                    Text("Sign In")
+                    Image(systemName: "chevron.right")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color(hexString: "D95F4B"))
+                .foregroundColor(.white)
+                .cornerRadius(12)
+            }
+            .padding(.horizontal)
+            .disabled(isLoading)
+            
+            NavigationLink(destination: VisuallyImpairedView().navigationBarBackButtonHidden(true), isActive: $navigateToMainView) { EmptyView() }
+        }
+        .alert(isPresented: $showAlert) {
+            Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+        }
+        .padding()
+        .overlay(loadingOverlay)
+    }
     
+    // MARK: - Sign-In Logic
     private func signInUser() {
-        isLoading = true
-        let db = Firestore.firestore()
+        let monitor = NWPathMonitor()
+        monitor.start(queue: DispatchQueue.global(qos: .background))
         
-        db.collection("Guardian").whereField("uniqueCode", isEqualTo: uniqueCode.uppercased()).getDocuments { snapshot, error in
-            self.isLoading = false
-            
-            if let error = error {
-                self.alertMessage = "Issue in checking your unique code. Please try again later. Error: \(error.localizedDescription)"
-                self.showAlert = true
-                return
-            }
-            
-            guard let documents = snapshot?.documents, !documents.isEmpty else {
-                self.alertMessage = "The unique code entered is invalid."
-                self.showAlert = true
-                return
-            }
-            
-            self.isLoading = true
-            Auth.auth().signIn(withEmail: self.email, password: self.password) { authResult, error in
-                self.isLoading = false
-                
-                if let error = error {
-                    self.handleAuthError(error)
-                    return
+        monitor.pathUpdateHandler = { path in
+            if path.status == .satisfied {
+                // Internet is available, proceed with online sign-in
+                DispatchQueue.main.async {
+                    self.attemptSignInOnline()
                 }
-                
-                guard let user = authResult?.user else {
-                    self.alertMessage = "Unexpected error: User not found after successful sign-in."
-                    self.showAlert = true
-                    return
+            } else {
+                // No internet, try offline sign-in
+                DispatchQueue.main.async {
+                    self.attemptSignInOffline()
                 }
-                
-                guard user.isEmailVerified else {
-                    self.alertMessage = "Your email is not verified. Please check your inbox."
-                    self.showAlert = true
-                    return
-                }
-                
-                self.navigateToMainView = true
             }
+            monitor.cancel()
         }
     }
-
+    
+    // MARK: - Online Sign-In
+    private func attemptSignInOnline() {
+        isLoading = true
+        Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
+            isLoading = false
+            if let error = error {
+                self.handleAuthError(error)
+                return
+            }
+            
+            guard let user = authResult?.user else {
+                alertMessage = "Unexpected error: User not found after successful sign-in."
+                showAlert = true
+                return
+            }
+            
+            guard user.isEmailVerified else {
+                alertMessage = "Your email is not verified. Please check your inbox."
+                showAlert = true
+                return
+            }
+            
+            // Save token and cache user profile
+            if let token = user.refreshToken {
+                KeychainHelper.shared.saveToken(token, forKey: "AuthToken")
+            }
+            
+            Firestore.firestore().collection("Visually_Impaired")
+                .document(user.uid)
+                .getDocument { document, error in
+                    if let document = document, document.exists {
+                        UserProfileCache.shared.saveProfile(document.data() ?? [:])
+                        navigateToMainView = true
+                    } else {
+                        alertMessage = "Failed to load user profile."
+                        showAlert = true
+                    }
+                }
+        }
+    }
+    
+    // MARK: - Offline Sign-In
+    private func attemptSignInOffline() {
+        if let token = KeychainHelper.shared.getToken(forKey: "AuthToken"),
+           let cachedProfile = UserProfileCache.shared.getProfile() {
+            print("Offline sign-in successful with cached profile: \(cachedProfile)")
+            navigateToMainView = true
+        } else {
+            alertMessage = "Offline sign-in failed. Please connect to the internet and try again."
+            showAlert = true
+        }
+    }
+    
+    // MARK: - Error Handling
     private func handleAuthError(_ error: Error) {
         if let authError = AuthErrorCode(rawValue: error._code) {
             switch authError {
+            case .networkError:
+                alertMessage = "Network error occurred. Please check your internet connection and try again."
             case .wrongPassword:
                 alertMessage = "The password is incorrect."
             case .invalidEmail:
@@ -621,20 +704,8 @@ struct ViSignInView: View {
         }
         showAlert = true
     }
-
-    private func resetPassword() {
-        guard !email.isEmpty else {
-            alertMessage = "Please enter your email address."
-            showAlert = true
-            return
-        }
-
-        Auth.auth().sendPasswordReset(withEmail: email) { error in
-            alertMessage = error?.localizedDescription ?? "Password reset email sent."
-            showAlert = true
-        }
-    }
     
+    // MARK: - Loading Overlay
     private var loadingOverlay: some View {
         Group {
             if isLoading {

@@ -329,7 +329,7 @@ struct StepByStepSignUpView: View {
 
     private func validateEmails() {
             guard !email.isEmpty, !confirmEmail.isEmpty, !visuallyImpairedEmail.isEmpty else {
-                alertMessage = "Please fill in all email fields."
+                alertMessage = "Please fill in All email fields."
                 showAlert = true
                 return
             }

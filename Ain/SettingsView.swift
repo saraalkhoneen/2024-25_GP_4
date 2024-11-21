@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var showChangePassword = false
     @State private var navigateToContentView = false  // New state for navigation
     @State private var showActionSheet = false // State for action sheet confirmation
+    
 
     var body: some View {
         NavigationView {
@@ -150,7 +151,7 @@ struct SettingsView: View {
                     
                     // "Go to Content" Button using Action Sheet
                     Button(action: {
-                        showActionSheet = true // Show action sheet on tap
+                        showActionSheet = true // Show confirmation action sheet
                     }) {
                         Text("Sign Out")
                             .frame(maxWidth: .infinity)
@@ -164,18 +165,20 @@ struct SettingsView: View {
                     .actionSheet(isPresented: $showActionSheet) {
                         ActionSheet(
                             title: Text("Are you sure?"),
-                            message: Text("By continuing, you will be signed out of your account"),
+                            message: Text("By continuing, you will be signed out of your account."),
                             buttons: [
-                                .default(Text("Yes, Sign out")) {
-                                    navigateToContentView = true // Trigger the full screen cover
+                                .destructive(Text("Sign Out")) {
+                                    performSignOut() // Call sign-out logic
                                 },
                                 .cancel()
                             ]
                         )
                     }
+
                     .fullScreenCover(isPresented: $navigateToContentView) {
                         ContentView().navigationBarBackButtonHidden(true)
                     }
+                    
 
 
                                      // Hidden NavigationLink to trigger navigation
@@ -224,8 +227,31 @@ struct SettingsView: View {
             }
         }
     }
+    private func performSignOut() {
+        do {
+            // Step 1: Firebase sign-out
+            try Auth.auth().signOut()
+            
+            // Step 2: Clear Keychain token
+            KeychainHelper.shared.deleteToken(forKey: "AuthToken")
+            
+            // Step 3: Clear cached user profile
+            UserProfileCache.shared.deleteProfile()
+            
+            // Step 4: Update AppState
+            AppState.shared.isLoggedIn = false
+            
+            // Step 5: Navigate to the ContentView (Login Screen)
+            navigateToContentView = true
+        } catch let error as NSError {
+            // Handle sign-out error
+            alertMessage = "Error signing out: \(error.localizedDescription)"
+            showAlert = true
+        }
+    }
 
                  }
+
 
     // private func signOut() {
     //     let auth = Auth.auth()
