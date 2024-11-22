@@ -1,8 +1,8 @@
 import SwiftUI
 import AVFoundation
-import Firebase
-import FirebaseStorage
+import UIKit
 
+// Main SwiftUI View for Tab Navigation
 struct VisuallyImpairedView: View {
     var body: some View {
         TabView {
@@ -22,6 +22,7 @@ struct VisuallyImpairedView: View {
     }
 }
 
+// SwiftUI View to display the Camera feed
 struct CameraTabView: View {
     @StateObject private var cameraManager = CameraManager()
     
@@ -50,12 +51,17 @@ struct CameraTabView: View {
     }
 }
 
+// Class to manage the Camera
 class CameraManager: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let speechSynthesizer = AVSpeechSynthesizer()
     private var roboflowURL: URL?
     private var lastFrameTime = Date()
+    private var lastDetectionTime: Date? = nil
+    private var detectionTimer: Timer? = nil
+    private var lastAnnouncedObject: String?
+    private let framesPerSecond = 2
 
     override init() {
         super.init()
@@ -96,11 +102,11 @@ class CameraManager: NSObject, ObservableObject {
     func startLiveStream() {
         session.startRunning()
         announceDetectionStart()
+        startDetectionTimer()
     }
     
     private func configureRoboflow() {
-        // Use the full API endpoint provided by Roboflow
-                    roboflowURL = URL(string: "https://app.roboflow.com/ds/5U8XURyiN4?key=D946GYUpBl")
+        roboflowURL = URL(string: "https://detect.roboflow.com/ain-on19r/7?api_key=99tvoVX14VOvwcbDYyqQ")
     }
 
     private func processFrame(imageBuffer: CVImageBuffer) {
@@ -112,64 +118,75 @@ class CameraManager: NSObject, ObservableObject {
         let ciImage = CIImage(cvImageBuffer: imageBuffer)
         let uiImage = UIImage(ciImage: ciImage)
         
-        // Save the frame locally for debugging
-        saveImageForDebugging(uiImage)
-        
         guard let imageData = uiImage.jpegData(compressionQuality: 0.8) else {
             print("Error: Failed to encode image as JPEG.")
             return
         }
         
-        var request = URLRequest(url: roboflowURL)
+        let fileContent = imageData.base64EncodedString()
+        guard let postData = fileContent.data(using: .utf8) else {
+            print("Error: Could not encode image data to UTF-8.")
+            return
+        }
+
+        var request = URLRequest(url: roboflowURL, timeoutInterval: Double.infinity)
+        request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpMethod = "POST"
-        request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-        request.httpBody = imageData
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                print("Error sending frame to Roboflow: \(error.localizedDescription)")
-                return
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                print("Error: Non-200 HTTP response.")
-                return
-            }
-            
+        request.httpBody = postData
+
+        URLSession.shared.dataTask(with: request, completionHandler: { data, response, error in
             guard let data = data else {
-                print("Error: No data received.")
+                print(String(describing: error))
                 return
             }
             
-            if let rawResponse = String(data: data, encoding: .utf8) {
-                print("Raw Roboflow Response: \(rawResponse)")
+            do {
+                if let dict = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                    self.handleDetectionResult(dict)
+                }
+            } catch {
+                print("Failed to parse Roboflow response: \(error.localizedDescription)")
             }
-            
-            guard let jsonResponse = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                print("Failed to parse Roboflow response.")
-                return
-            }
-            
-            self.handleDetectionResult(jsonResponse)
-        }.resume()
+        }).resume()
     }
     
     private func handleDetectionResult(_ result: [String: Any]) {
         if let predictions = result["predictions"] as? [[String: Any]] {
             if predictions.isEmpty {
-                print("Predictions are empty.")
+                // No detections; nothing to do here
             } else {
-                for prediction in predictions {
-                    if let label = prediction["class"] as? String {
-                        DispatchQueue.main.async {
-                            self.announceDetectedObject(label)
-                        }
-                    }
-                }
+                stopDetectionTimer() // Stop the timer when an object is detected
+                handleNonEmptyPrediction(predictions)
             }
         } else {
             print("No 'predictions' key in response.")
         }
+    }
+    
+    private func handleNonEmptyPrediction(_ predictions: [[String: Any]]) {
+        for prediction in predictions {
+            if let label = prediction["class"] as? String {
+                if label != lastAnnouncedObject {
+                    announceDetectedObject(label)
+                    lastAnnouncedObject = label
+                    break
+                }
+            }
+        }
+    }
+    
+    private func startDetectionTimer() {
+        detectionTimer?.invalidate() // Ensure any previous timer is stopped
+        lastDetectionTime = Date()
+        detectionTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            self.announceNoDetectedObjectIfNeeded()
+        }
+    }
+    
+    private func stopDetectionTimer() {
+        detectionTimer?.invalidate()
+        detectionTimer = nil
     }
     
     private func announceDetectionStart() {
@@ -177,7 +194,13 @@ class CameraManager: NSObject, ObservableObject {
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         DispatchQueue.main.async {
             self.speechSynthesizer.speak(utterance)
-            print("Voice feedback: \(utterance.speechString)") // Debugging log
+        }
+    }
+    
+    private func announceNoDetectedObjectIfNeeded() {
+        if let lastDetectionTime = lastDetectionTime, Date().timeIntervalSince(lastDetectionTime) >= 5.0 {
+            announceDetectedObject("No detected object")
+            lastAnnouncedObject = nil // Reset for future detections
         }
     }
     
@@ -186,18 +209,6 @@ class CameraManager: NSObject, ObservableObject {
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         DispatchQueue.main.async {
             self.speechSynthesizer.speak(utterance)
-            print("Voice feedback: \(utterance.speechString)") // Debugging log
-        }
-    }
-    
-    private func saveImageForDebugging(_ image: UIImage) {
-        guard let imageData = image.jpegData(compressionQuality: 1.0) else { return }
-        let filePath = FileManager.default.temporaryDirectory.appendingPathComponent("debug_frame.jpg")
-        do {
-            try imageData.write(to: filePath)
-            print("Debug frame saved to: \(filePath)")
-        } catch {
-            print("Failed to save debug frame: \(error.localizedDescription)")
         }
     }
 }
@@ -205,7 +216,7 @@ class CameraManager: NSObject, ObservableObject {
 extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         let now = Date()
-        if now.timeIntervalSince(lastFrameTime) < 1.0 { return } // Process 1 frame per second
+        if now.timeIntervalSince(lastFrameTime) < 1.0 / Double(framesPerSecond) { return }
         lastFrameTime = now
         
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
@@ -213,6 +224,7 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     }
 }
 
+// UIViewRepresentable for Camera Preview in SwiftUI
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
     
@@ -229,9 +241,11 @@ struct CameraPreviewView: UIViewRepresentable {
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
+
+
+// Preview for Visually Impaired View
 struct VisuallyImpairedView_Previews: PreviewProvider {
     static var previews: some View {
         VisuallyImpairedView()
     }
 }
-
