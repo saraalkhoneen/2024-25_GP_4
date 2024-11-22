@@ -58,27 +58,29 @@ class CameraManager: NSObject, ObservableObject {
     private let speechSynthesizer = AVSpeechSynthesizer()
     private var roboflowURL: URL?
     private var lastFrameTime = Date()
-    private var lastDetectionTime: Date? = nil
-    private var detectionTimer: Timer? = nil
+    private var lastDetectionTime: Date?
+    private var detectionTimer: Timer?
     private var lastAnnouncedObject: String?
     private let framesPerSecond = 2
+    private var frameCountSinceLastDetection = 0
+    private let maxFramesWithoutDetection = 10
 
     override init() {
         super.init()
         configureRoboflow()
     }
-    
+
     func configure() {
         session.beginConfiguration()
         session.sessionPreset = .high
-        
+
         guard let backCamera = AVCaptureDevice.default(for: .video),
               let input = try? AVCaptureDeviceInput(device: backCamera) else {
             print("Error: Unable to access the back camera!")
             session.commitConfiguration()
             return
         }
-        
+
         if session.canAddInput(input) {
             session.addInput(input)
         } else {
@@ -86,7 +88,7 @@ class CameraManager: NSObject, ObservableObject {
             session.commitConfiguration()
             return
         }
-        
+
         videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
         if session.canAddOutput(videoOutput) {
             session.addOutput(videoOutput)
@@ -95,16 +97,16 @@ class CameraManager: NSObject, ObservableObject {
             session.commitConfiguration()
             return
         }
-        
+
         session.commitConfiguration()
     }
-    
+
     func startLiveStream() {
         session.startRunning()
         announceDetectionStart()
-        startDetectionTimer()
+        resetDetectionTracking()
     }
-    
+
     private func configureRoboflow() {
         roboflowURL = URL(string: "https://detect.roboflow.com/ain-on19r/7?api_key=99tvoVX14VOvwcbDYyqQ")
     }
@@ -114,15 +116,15 @@ class CameraManager: NSObject, ObservableObject {
             print("Error: Roboflow URL is not configured.")
             return
         }
-        
+
         let ciImage = CIImage(cvImageBuffer: imageBuffer)
         let uiImage = UIImage(ciImage: ciImage)
-        
+
         guard let imageData = uiImage.jpegData(compressionQuality: 0.8) else {
             print("Error: Failed to encode image as JPEG.")
             return
         }
-        
+
         let fileContent = imageData.base64EncodedString()
         guard let postData = fileContent.data(using: .utf8) else {
             print("Error: Could not encode image data to UTF-8.")
@@ -139,7 +141,7 @@ class CameraManager: NSObject, ObservableObject {
                 print(String(describing: error))
                 return
             }
-            
+
             do {
                 if let dict = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
                     self.handleDetectionResult(dict)
@@ -149,61 +151,55 @@ class CameraManager: NSObject, ObservableObject {
             }
         }).resume()
     }
-    
+
     private func handleDetectionResult(_ result: [String: Any]) {
         if let predictions = result["predictions"] as? [[String: Any]] {
             if predictions.isEmpty {
-                // No detections; nothing to do here
+                frameCountSinceLastDetection += 1
+                checkNoDetectionCondition()
             } else {
-                stopDetectionTimer() // Stop the timer when an object is detected
                 handleNonEmptyPrediction(predictions)
             }
         } else {
             print("No 'predictions' key in response.")
         }
     }
-    
+
     private func handleNonEmptyPrediction(_ predictions: [[String: Any]]) {
         for prediction in predictions {
             if let label = prediction["class"] as? String {
                 if label != lastAnnouncedObject {
                     announceDetectedObject(label)
                     lastAnnouncedObject = label
+                    resetDetectionTracking()
                     break
                 }
             }
         }
     }
-    
-    private func startDetectionTimer() {
-        detectionTimer?.invalidate() // Ensure any previous timer is stopped
-        lastDetectionTime = Date()
-        detectionTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
-            guard let self = self else { return }
-            self.announceNoDetectedObjectIfNeeded()
+
+    private func checkNoDetectionCondition() {
+        if frameCountSinceLastDetection >= maxFramesWithoutDetection,
+           let lastDetectionTime = lastDetectionTime,
+           Date().timeIntervalSince(lastDetectionTime) >= 5.0 {
+            announceDetectedObject("Nothing")
+            resetDetectionTracking()
         }
     }
-    
-    private func stopDetectionTimer() {
-        detectionTimer?.invalidate()
-        detectionTimer = nil
+
+    private func resetDetectionTracking() {
+        frameCountSinceLastDetection = 0
+        lastDetectionTime = Date()
     }
-    
+
     private func announceDetectionStart() {
-        let utterance = AVSpeechUtterance(string: "Starting object detection.")
+        let utterance = AVSpeechUtterance(string: "Starting detection.")
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         DispatchQueue.main.async {
             self.speechSynthesizer.speak(utterance)
         }
     }
-    
-    private func announceNoDetectedObjectIfNeeded() {
-        if let lastDetectionTime = lastDetectionTime, Date().timeIntervalSince(lastDetectionTime) >= 5.0 {
-            announceDetectedObject("No detected object")
-            lastAnnouncedObject = nil // Reset for future detections
-        }
-    }
-    
+
     private func announceDetectedObject(_ object: String) {
         let utterance = AVSpeechUtterance(string: "Detected \(object)")
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
@@ -218,7 +214,7 @@ extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
         let now = Date()
         if now.timeIntervalSince(lastFrameTime) < 1.0 / Double(framesPerSecond) { return }
         lastFrameTime = now
-        
+
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         processFrame(imageBuffer: imageBuffer)
     }
@@ -240,8 +236,6 @@ struct CameraPreviewView: UIViewRepresentable {
     
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
-
-
 
 // Preview for Visually Impaired View
 struct VisuallyImpairedView_Previews: PreviewProvider {
