@@ -22,5 +22,6 @@
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>We use your location to check the connected Wi-Fi network.</string>
 
+   
 </dict>
 </plist>
