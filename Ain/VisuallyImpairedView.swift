@@ -1,6 +1,8 @@
 import SwiftUI
 import AVFoundation
 import UIKit
+import CoreML
+import Vision
 
 // Main SwiftUI View for Tab Navigation
 struct VisuallyImpairedView: View {
@@ -56,7 +58,7 @@ class CameraManager: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let speechSynthesizer = AVSpeechSynthesizer()
-    private var roboflowURL: URL?
+    private var model: VNCoreMLModel?
     private var lastFrameTime = Date()
     private var lastDetectionTime: Date?
     private var detectionTimer: Timer?
@@ -67,7 +69,7 @@ class CameraManager: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        configureRoboflow()
+        configureCoreMLModel()
     }
 
     func configure() {
@@ -107,72 +109,51 @@ class CameraManager: NSObject, ObservableObject {
         resetDetectionTracking()
     }
 
-    private func configureRoboflow() {
-        roboflowURL = URL(string: "https://detect.roboflow.com/ain-on19r/7?api_key=99tvoVX14VOvwcbDYyqQ")
+    private func configureCoreMLModel() {
+        do {
+            let coreMLModel = try AinModel_1(configuration: MLModelConfiguration())
+            model = try VNCoreMLModel(for: coreMLModel.model)
+            print("Model loaded successfully.")
+        } catch {
+            print("Error: Failed to load Core ML model - \(error.localizedDescription)")
+        }
     }
 
     private func processFrame(imageBuffer: CVImageBuffer) {
-        guard let roboflowURL = roboflowURL else {
-            print("Error: Roboflow URL is not configured.")
+        guard let model = model else {
+            print("Error: Core ML model is not loaded.")
             return
         }
 
-        let ciImage = CIImage(cvImageBuffer: imageBuffer)
-        let uiImage = UIImage(ciImage: ciImage)
-
-        guard let imageData = uiImage.jpegData(compressionQuality: 0.8) else {
-            print("Error: Failed to encode image as JPEG.")
-            return
-        }
-
-        let fileContent = imageData.base64EncodedString()
-        guard let postData = fileContent.data(using: .utf8) else {
-            print("Error: Could not encode image data to UTF-8.")
-            return
-        }
-
-        var request = URLRequest(url: roboflowURL, timeoutInterval: Double.infinity)
-        request.addValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpMethod = "POST"
-        request.httpBody = postData
-
-        URLSession.shared.dataTask(with: request, completionHandler: { data, response, error in
-            guard let data = data else {
-                print(String(describing: error))
-                return
+        let request = VNCoreMLRequest(model: model) { [weak self] request, error in
+            if let results = request.results as? [VNRecognizedObjectObservation] {
+                self?.handleDetectionResults(results)
+            } else if let error = error {
+                print("Error processing frame: \(error.localizedDescription)")
             }
-
-            do {
-                if let dict = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
-                    self.handleDetectionResult(dict)
-                }
-            } catch {
-                print("Failed to parse Roboflow response: \(error.localizedDescription)")
-            }
-        }).resume()
+        }
+        
+        let handler = VNImageRequestHandler(cvPixelBuffer: imageBuffer, options: [:])
+        do {
+            try handler.perform([request])
+        } catch {
+            print("Failed to perform request: \(error.localizedDescription)")
+        }
     }
 
-    private func handleDetectionResult(_ result: [String: Any]) {
-        if let predictions = result["predictions"] as? [[String: Any]] {
-            if predictions.isEmpty {
-                frameCountSinceLastDetection += 1
-                checkNoDetectionCondition()
-            } else {
-                handleNonEmptyPrediction(predictions)
-            }
+    private func handleDetectionResults(_ results: [VNRecognizedObjectObservation]) {
+        if results.isEmpty {
+            frameCountSinceLastDetection += 1
+            checkNoDetectionCondition()
         } else {
-            print("No 'predictions' key in response.")
-        }
-    }
-
-    private func handleNonEmptyPrediction(_ predictions: [[String: Any]]) {
-        for prediction in predictions {
-            if let label = prediction["class"] as? String {
-                if label != lastAnnouncedObject {
-                    announceDetectedObject(label)
-                    lastAnnouncedObject = label
-                    resetDetectionTracking()
-                    break
+            for observation in results {
+                if let label = observation.labels.first?.identifier {
+                    if label != lastAnnouncedObject {
+                        announceDetectedObject(label)
+                        lastAnnouncedObject = label
+                        resetDetectionTracking()
+                        break
+                    }
                 }
             }
         }
@@ -201,7 +182,7 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func announceDetectedObject(_ object: String) {
-        let utterance = AVSpeechUtterance(string: "Detected \(object)")
+        let utterance = AVSpeechUtterance(string: " \(object)")
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         DispatchQueue.main.async {
             self.speechSynthesizer.speak(utterance)
@@ -243,3 +224,4 @@ struct VisuallyImpairedView_Previews: PreviewProvider {
         VisuallyImpairedView()
     }
 }
+
