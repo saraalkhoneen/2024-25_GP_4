@@ -61,11 +61,9 @@ class CameraManager: NSObject, ObservableObject {
     private var model: VNCoreMLModel?
     private var lastFrameTime = Date()
     private var lastDetectionTime: Date?
-    private var detectionTimer: Timer?
     private var lastAnnouncedObject: String?
     private let framesPerSecond = 2
-    private var frameCountSinceLastDetection = 0
-    private let maxFramesWithoutDetection = 10
+    private let allowedClasses = ["Mouse", "Light Switch", "Hand", "Earbud", "Door", "Board", "Airpods Case"] 
 
     override init() {
         super.init()
@@ -106,12 +104,11 @@ class CameraManager: NSObject, ObservableObject {
     func startLiveStream() {
         session.startRunning()
         announceDetectionStart()
-        resetDetectionTracking()
     }
 
     private func configureCoreMLModel() {
         do {
-            let coreMLModel = try AinModel_1(configuration: MLModelConfiguration())
+            let coreMLModel = try AinModel_2(configuration: MLModelConfiguration())
             model = try VNCoreMLModel(for: coreMLModel.model)
             print("Model loaded successfully.")
         } catch {
@@ -142,35 +139,18 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func handleDetectionResults(_ results: [VNRecognizedObjectObservation]) {
-        if results.isEmpty {
-            frameCountSinceLastDetection += 1
-            checkNoDetectionCondition()
-        } else {
-            for observation in results {
-                if let label = observation.labels.first?.identifier {
-                    if label != lastAnnouncedObject {
-                        announceDetectedObject(label)
-                        lastAnnouncedObject = label
-                        resetDetectionTracking()
-                        break
-                    }
-                }
+        for observation in results {
+            guard let label = observation.labels.first?.identifier else { continue }
+
+            // Skip if the class is not in the allowed list
+            if !allowedClasses.contains(label) { continue }
+
+            // Announce only if the object changes
+            if label != lastAnnouncedObject {
+                lastAnnouncedObject = label
+                announceDetectedObject(label)
             }
         }
-    }
-
-    private func checkNoDetectionCondition() {
-        if frameCountSinceLastDetection >= maxFramesWithoutDetection,
-           let lastDetectionTime = lastDetectionTime,
-           Date().timeIntervalSince(lastDetectionTime) >= 5.0 {
-            announceDetectedObject("Nothing")
-            resetDetectionTracking()
-        }
-    }
-
-    private func resetDetectionTracking() {
-        frameCountSinceLastDetection = 0
-        lastDetectionTime = Date()
     }
 
     private func announceDetectionStart() {
@@ -182,7 +162,7 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func announceDetectedObject(_ object: String) {
-        let utterance = AVSpeechUtterance(string: " \(object)")
+        let utterance = AVSpeechUtterance(string: "\(object)")
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
         DispatchQueue.main.async {
             self.speechSynthesizer.speak(utterance)
