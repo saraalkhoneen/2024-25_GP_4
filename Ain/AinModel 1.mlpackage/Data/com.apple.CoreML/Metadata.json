@@ -1,0 +1,10 @@
+{
+  "MLModelCreatorDefinedKey" : {
+    "com.apple.createml.version" : "15.0.1",
+    "com.apple.createml.app.tag" : "150.3",
+    "com.apple.coreml.model.preview.type" : "objectDetector",
+    "iterations" : "42000",
+    "com.apple.createml.app.version" : "6.1"
+  },
+  "MLModelAuthorKey" : "Sara alkhoneen"
+}
