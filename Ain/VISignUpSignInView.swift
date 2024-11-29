@@ -8,23 +8,19 @@ import FirebaseFirestore
 import Security
 import Network
 
-
 // MARK: - Keychain Helper
 class KeychainHelper {
     static let shared = KeychainHelper()
-    
     private init() {}
 
     func saveToken(_ token: String, forKey key: String) {
         guard let tokenData = token.data(using: .utf8) else { return }
-        
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
             kSecValueData as String: tokenData,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         ]
-        
         SecItemDelete(query as CFDictionary)
         SecItemAdd(query as CFDictionary, nil)
     }
@@ -36,10 +32,8 @@ class KeychainHelper {
             kSecReturnData as String: kCFBooleanTrue!,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
-        
         var dataTypeRef: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
-        
         if status == errSecSuccess, let data = dataTypeRef as? Data {
             return String(data: data, encoding: .utf8)
         }
@@ -58,7 +52,6 @@ class KeychainHelper {
 // MARK: - User Profile Cache
 class UserProfileCache {
     static let shared = UserProfileCache()
-    
     private let profileKey = "UserProfile"
     
     func saveProfile(_ profile: [String: Any]) {
@@ -86,12 +79,10 @@ struct VISignUpSignInView: View {
                     .frame(height: 40)
                     .edgesIgnoringSafeArea(.top)
                 
-                // Light gray text on top of the page
-                               Text("Visually Impaired")
-                                   .font(.headline)
-                                   .foregroundColor(Color.gray.opacity(0.7)) // Light gray color
-                                   .padding(.top, 10) // Adjust padding as needed
-                               
+                Text("Visually Impaired")
+                    .font(.headline)
+                    .foregroundColor(Color.gray.opacity(0.7))
+                    .padding(.top, 10)
                 
                 HStack(spacing: 0) {
                     Button(action: { selectedTab = "Sign Up" }) {
@@ -130,51 +121,89 @@ struct VISignUpSignInView: View {
     }
 }
 
+// MARK: - Step-by-Step Sign-Up
 struct ViStepByStepSignUpView: View {
     @Binding var selectedTab: String
     @State private var step = 1
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var email = ""
-    @State private var confirmEmail = ""
-    @State private var password = ""
-    @State private var confirmPassword = ""
     @State private var uniqueCode = ""
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var isLoading = false
     
     var body: some View {
-            VStack(spacing: 20) {
-                if step == 1 {
-                    // Step 1: First Name and Last Name with labels
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 2) {
-                            Text("First Name")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                            Text("*")
-                                .foregroundColor(.red)
-                        }
-                        CustomTextField(placeholder: "First Name", text: $firstName)
+        VStack(spacing: 20) {
+            if step == 1 {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 2) {
+                        Text("First Name").font(.subheadline).foregroundColor(.gray)
+                        Text("*").foregroundColor(.red)
                     }
-                    .padding(.horizontal)
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 2) {
-                            Text("Last Name")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                            Text("*")
-                                .foregroundColor(.red)
-                        }
-                        CustomTextField(placeholder: "Last Name", text: $lastName)
+                    CustomTextField(placeholder: "First Name", text: $firstName)
+                }
+                .padding(.horizontal)
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 2) {
+                        Text("Last Name").font(.subheadline).foregroundColor(.gray)
+                        Text("*").foregroundColor(.red)
                     }
-                    .padding(.horizontal)
-                    
-                    Button(action: proceedToStep2) {
+                    CustomTextField(placeholder: "Last Name", text: $lastName)
+                }
+                .padding(.horizontal)
+                
+                Button(action: proceedToStep2) {
+                    HStack {
+                        Text("Next")
+                        Image(systemName: "chevron.right")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(hexString: "D95F4B"))
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .disabled(isLoading)
+                
+            } else if step == 2 {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 2) {
+                        Text("Email").font(.subheadline).foregroundColor(.gray)
+                        Text("*").foregroundColor(.red)
+                    }
+                    CustomTextField(placeholder: "Email", text: $email)
+                }
+                .padding(.horizontal)
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 2) {
+                        Text("Unique Code").font(.subheadline).foregroundColor(.gray)
+                        Text("*").foregroundColor(.red)
+                    }
+                    CustomTextField(placeholder: "Unique Code", text: $uniqueCode)
+                }
+                .padding(.horizontal)
+                
+                HStack(spacing: 10) {
+                    Button(action: { step = 1 }) {
                         HStack {
-                            Text("Next")
+                            Image(systemName: "chevron.left")
+                            Text("Back")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(hexString: "5a5a5a"))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isLoading)
+                    
+                    Button(action: validateGuardianCodeAndEmail) {
+                        HStack {
+                            Text("Sign Up")
                             Image(systemName: "chevron.right")
                         }
                         .frame(maxWidth: .infinity)
@@ -183,369 +212,97 @@ struct ViStepByStepSignUpView: View {
                         .foregroundColor(.white)
                         .cornerRadius(12)
                     }
-                    .padding(.horizontal)
                     .disabled(isLoading)
-                    
-                } else if step == 2 {
-                    // Step 2: Email and Confirm Email with labels
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 2) {
-                            Text("Email")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                            Text("*")
-                                .foregroundColor(.red)
-                        }
-                        CustomTextField(placeholder: "Email", text: $email)
-                    }
-                    .padding(.horizontal)
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 2) {
-                            Text("Confirm Email")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                            Text("*")
-                                .foregroundColor(.red)
-                        }
-                        CustomTextField(placeholder: "Confirm Email", text: $confirmEmail)
-                    }
-                    .padding(.horizontal)
-
-                    HStack(spacing: 10) {
-                        Button(action: { step = 1 }) {
-                            HStack {
-                                Image(systemName: "chevron.left")
-                                Text("Back")
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(hexString: "5a5a5a"))
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                        }
-                        .disabled(isLoading)
-                        
-                        Button(action: {
-                            if validateEmails() {
-                                step = 3
-                            }
-                        }) {
-                            HStack {
-                                Text("Next")
-                                Image(systemName: "chevron.right")
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(hexString: "D95F4B"))
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                        }
-                        .disabled(isLoading)
-                    }
-                    .padding(.horizontal)
-                    
-                } else if step == 3 {
-                    // Step 3: Password, Confirm Password, and Unique Code with labels
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 2) {
-                            Text("Password")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                            Text("*")
-                                .foregroundColor(.red)
-                        }
-                        CustomTextField(placeholder: "Password", text: $password, isSecure: true)
-                    }
-                    .padding(.horizontal)
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 2) {
-                        Text("Confirm Password")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                            Text("*")
-                                .foregroundColor(.red)
-                        }
-                        CustomTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
-                    }
-                    .padding(.horizontal)
-                    
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 2) {
-                        Text("Unique Code")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                            Text("*")
-                                .foregroundColor(.red)
-                        }
-                        CustomTextField(placeholder: "Unique Code", text: $uniqueCode)
-                    }
-                    .padding(.horizontal)
-
-                    HStack(spacing: 10) {
-                        Button(action: { step = 2 }) {
-                            HStack {
-                                Image(systemName: "chevron.left")
-                                Text("Back")
-                                
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(hexString: "5a5a5a"))
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                        }
-                        .disabled(isLoading)
-                        
-                        Button(action: registerUser) {
-                            HStack {
-                                Text("Sign Up")
-                                Image(systemName: "chevron.right")
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color(hexString: "D95F4B"))
-                            .foregroundColor(.white)
-                            .cornerRadius(12)
-                        }
-                        .disabled(isLoading)
-                    }
-                    .padding(.horizontal)
+                }
+                .padding(.horizontal)
+            }
+        }
+        .alert(isPresented: $showAlert) {
+            Alert(title: Text("Alert"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
+        }
+        .padding(.horizontal)
+        .overlay(
+            Group {
+                if isLoading {
+                    Color.black.opacity(0.4).edgesIgnoringSafeArea(.all)
+                    ProgressView("Loading...")
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
                 }
             }
-            .alert(isPresented: $showAlert) {
-                Alert(title: Text("Alert"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
-            }
-            .padding(.horizontal)
-            .overlay(loadingOverlay)
-        }
+        )
+    }
     
     private func proceedToStep2() {
-        if firstName.isEmpty && lastName.isEmpty {
-            alertMessage = "Please enter both your first and last names."
+        if firstName.isEmpty || firstName.count < 2 {
+            alertMessage = "First name must be at least 2 characters."
             showAlert = true
-        } else if firstName.isEmpty {
-            alertMessage = "Please enter your first name."
-            showAlert = true
-        } else if firstName.count < 2 {
-            alertMessage = "First name must be at least 2 letters."
-            showAlert = true
-        } else if lastName.isEmpty {
-            alertMessage = "Please enter your last name."
-            showAlert = true
-        } else if lastName.count < 2 {
-            alertMessage = "Last name must be at least 2 letters."
+        } else if lastName.isEmpty || lastName.count < 2 {
+            alertMessage = "Last name must be at least 2 characters."
             showAlert = true
         } else {
             step = 2
         }
     }
     
-    
-    private func validateEmails() -> Bool {
-        guard !email.isEmpty, !confirmEmail.isEmpty else {
-            alertMessage = "Please fill in both email fields."
-            showAlert = true
-            return false
-        }
-        
-        guard email == confirmEmail, isValidEmail(email) else {
-            alertMessage = email == confirmEmail ? "Invalid email format." : "Emails do not match."
-            showAlert = true
-            return false
-        }
-        
-        checkEmailExists(email)
-        return true
-    }
-    
-    private func checkEmailExists(_ email: String) {
-        isLoading = true
-        Firestore.firestore().collection("Visually_Impaired")
-            .whereField("email", isEqualTo: email)
-            .getDocuments { querySnapshot, error in
-                isLoading = false
-                if let error = error {
-                    alertMessage = "Error checking email: \(error.localizedDescription)"
-                    showAlert = true
-                } else if querySnapshot?.documents.isEmpty == false {
-                    alertMessage = "Email is already registered."
-                    showAlert = true
-                } else {
-                    step = 3
-                }
-            }
-    }
-    
-    private func registerUser() {
-        guard !firstName.isEmpty && !lastName.isEmpty else {
-            alertMessage = "Please fill in your first and last name."
-            showAlert = true
-            return
-        }
-
-        guard validateEmails() else { return }
-
-        guard !password.isEmpty, !confirmPassword.isEmpty else {
-            alertMessage = "Please fill in both password fields."
-            showAlert = true
-            return
-        }
-
-        guard password == confirmPassword else {
-            alertMessage = "The passwords do not match."
-            showAlert = true
-            return
-        }
-
-        guard password.count >= 8 else {
-            alertMessage = "Password must be at least 8 characters long."
-            showAlert = true
-            return
-        }
-        print("Validating password: \(password)")
-        
-        // Password validation criteria
-        let uppercaseRegex = ".*[A-Z].*"
-        let lowercaseRegex = ".*[a-z].*"
-        let numberRegex = ".*[0-9].*"
-        let specialCharacterRegex = ".*[!@#$%^&*].*" 
-
-        guard NSPredicate(format: "SELF MATCHES %@", uppercaseRegex).evaluate(with: password) else {
-            alertMessage = "Password must include at least one uppercase letter."
-            showAlert = true
-            return
-        }
-
-        guard NSPredicate(format: "SELF MATCHES %@", lowercaseRegex).evaluate(with: password) else {
-            alertMessage = "Password must include at least one lowercase letter."
-            showAlert = true
-            return
-        }
-
-        guard NSPredicate(format: "SELF MATCHES %@", numberRegex).evaluate(with: password) else {
-            alertMessage = "Password must include at least one number."
-            showAlert = true
-            return
-        }
-
-        guard NSPredicate(format: "SELF MATCHES %@", specialCharacterRegex).evaluate(with: password) else {
-            alertMessage = "Password must include at least one special character."
-            showAlert = true
-            return
-        }
-
-        guard !uniqueCode.isEmpty else {
-            alertMessage = "Please enter your unique code."
-            showAlert = true
-            return
-        }
-
-        // Function to check if the unique code exists
-        checkUniqueCodeExists(uniqueCode)
-    }
-
-
-    private func checkUniqueCodeExists(_ code: String) {
+    private func validateGuardianCodeAndEmail() {
         isLoading = true
         Firestore.firestore().collection("Guardian")
-            .whereField("uniqueCode", isEqualTo: code.uppercased())
+            .whereField("uniqueCode", isEqualTo: uniqueCode.uppercased())
+            .whereField("visuallyImpairedEmail", isEqualTo: email)
             .getDocuments { snapshot, error in
-                isLoading = false
+                self.isLoading = false
                 if let error = error {
-                    alertMessage = "Error checking unique code: \(error.localizedDescription)"
-                    showAlert = true
-                } else if snapshot?.documents.isEmpty == false {
-                    performUserRegistration()
+                    self.alertMessage = "Error verifying unique code: \(error.localizedDescription)"
+                    self.showAlert = true
+                } else if let document = snapshot?.documents.first,
+                          document.data()["VI_ID"] == nil {
+                    self.registerUser(guardianDocID: document.documentID)
                 } else {
-                    alertMessage = "Invalid unique code."
-                    showAlert = true
+                    self.alertMessage = "Unique code and email do not match or are already linked with another user."
+                    self.showAlert = true
                 }
             }
     }
-
-    private func performUserRegistration() {
+    
+    private func registerUser(guardianDocID: String) {
         isLoading = true
-        Auth.auth().createUser(withEmail: email, password: password) { result, error in
-            isLoading = false
+        Auth.auth().createUser(withEmail: email, password: "DefaultPass123!") { result, error in
+            self.isLoading = false
             if let error = error {
-                alertMessage = error.localizedDescription
-                showAlert = true
+                self.alertMessage = error.localizedDescription
+                self.showAlert = true
             } else if let user = result?.user {
-                user.sendEmailVerification { error in
-                    if let error = error {
-                        alertMessage = "Failed to send verification email: \(error.localizedDescription)"
-                        showAlert = true
-                    } else {
-                        saveUserToFirestore(user: user)
-                    }
-                }
+                self.saveUserToFirestore(user: user, guardianDocID: guardianDocID)
             }
         }
     }
-
-    private func saveUserToFirestore(user: FirebaseAuth.User) {
+    
+    private func saveUserToFirestore(user: FirebaseAuth.User, guardianDocID: String) {
         let db = Firestore.firestore()
-        let visuallyImpairedData = [
+        db.collection("Visually_Impaired").document(user.uid).setData([
             "firstName": firstName,
             "lastName": lastName,
             "email": email,
             "uniqueCode": uniqueCode.uppercased()
-        ]
-        
-        db.collection("Visually_Impaired").document(user.uid).setData(visuallyImpairedData) { error in
+        ]) { error in
             if let error = error {
-                alertMessage = "Error saving user: \(error.localizedDescription)"
-                showAlert = true
+                self.alertMessage = "Error saving user data: \(error.localizedDescription)"
+                self.showAlert = true
             } else {
-                updateGuardianWithVisuallyImpairedUID(user.uid)
+                self.linkVisuallyImpairedToGuardian(guardianDocID: guardianDocID, visuallyImpairedUID: user.uid)
             }
         }
     }
-
-    private func updateGuardianWithVisuallyImpairedUID(_ visuallyImpairedUID: String) {
+    
+    private func linkVisuallyImpairedToGuardian(guardianDocID: String, visuallyImpairedUID: String) {
         let db = Firestore.firestore()
-        db.collection("Guardian")
-            .whereField("uniqueCode", isEqualTo: uniqueCode.uppercased())
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    alertMessage = "Error updating guardian: \(error.localizedDescription)"
-                    showAlert = true
-                } else if let document = snapshot?.documents.first {
-                    document.reference.updateData([
-                        "VI_ID": visuallyImpairedUID
-                    ]) { error in
-                        if let error = error {
-                            alertMessage = "Error linking with guardian: \(error.localizedDescription)"
-                        } else {
-                            // Redirect to Sign In tab after showing success alert
-                                               DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                                                   // Switch to Sign In after a short delay
-                                                   selectedTab = "Sign In"
-                                               }
-                                           }
-                                       }
-                } else {
-                    alertMessage = "Guardian not found with provided unique code."
-                    showAlert = true
-                }
-            }
-    }
-
-    private func isValidEmail(_ email: String) -> Bool {
-        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}"
-        return NSPredicate(format: "SELF MATCHES %@", emailRegex).evaluate(with: email)
-    }
-
-    private var loadingOverlay: some View {
-        Group {
-            if isLoading {
-                Color.black.opacity(0.4)
-                    .edgesIgnoringSafeArea(.all)
-                ProgressView("Loading...")
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
+        db.collection("Guardian").document(guardianDocID).updateData(["VI_ID": visuallyImpairedUID]) { error in
+            if let error = error {
+                self.alertMessage = "Error linking with guardian: \(error.localizedDescription)"
+                self.showAlert = true
+            } else {
+                self.selectedTab = "Sign In"
             }
         }
     }
@@ -554,35 +311,22 @@ struct ViStepByStepSignUpView: View {
 // MARK: - ViSignInView
 struct ViSignInView: View {
     @State private var email = ""
-    @State private var password = ""
     @State private var uniqueCode = ""
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var isLoading = false
     @State private var navigateToMainView = false
-
+    
     var body: some View {
         VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 5) {
-                Text("Email")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                CustomTextField(placeholder: "Enter your Email", text: $email)
+                Text("Email").font(.subheadline).foregroundColor(.gray)
+                CustomTextField(placeholder: "Enter Email", text: $email)
             }
             .padding(.horizontal)
             
             VStack(alignment: .leading, spacing: 5) {
-                Text("Password")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                CustomTextField(placeholder: "Enter your Password", text: $password, isSecure: true)
-            }
-            .padding(.horizontal)
-            
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Unique Code")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+                Text("Unique Code").font(.subheadline).foregroundColor(.gray)
                 CustomTextField(placeholder: "Enter Guardian's Unique Code", text: $uniqueCode)
             }
             .padding(.horizontal)
@@ -607,120 +351,165 @@ struct ViSignInView: View {
             Alert(title: Text("Error"), message: Text(alertMessage), dismissButton: .default(Text("OK")))
         }
         .padding()
-        .overlay(loadingOverlay)
-    }
-    
-    // MARK: - Sign-In Logic
-    private func signInUser() {
-        let monitor = NWPathMonitor()
-        monitor.start(queue: DispatchQueue.global(qos: .background))
-        
-        monitor.pathUpdateHandler = { path in
-            if path.status == .satisfied {
-                // Internet is available, proceed with online sign-in
-                DispatchQueue.main.async {
-                    self.attemptSignInOnline()
-                }
-            } else {
-                // No internet, try offline sign-in
-                DispatchQueue.main.async {
-                    self.attemptSignInOffline()
+        .overlay(
+            Group {
+                if isLoading {
+                    Color.black.opacity(0.4)
+                        .edgesIgnoringSafeArea(.all)
+                    ProgressView("Loading...")
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
                 }
             }
-            monitor.cancel()
+        )
+    }
+    
+    private func signInUser() {
+        guard !email.isEmpty else {
+            alertMessage = "Please enter your email."
+            showAlert = true
+            return
+        }
+        
+        guard !uniqueCode.isEmpty else {
+            alertMessage = "Please enter the unique code."
+            showAlert = true
+            return
+        }
+        
+        isLoading = true
+        Firestore.firestore().collection("Guardian")
+            .whereField("uniqueCode", isEqualTo: uniqueCode.uppercased())
+            .whereField("visuallyImpairedEmail", isEqualTo: email)
+            .getDocuments { snapshot, error in
+                self.isLoading = false
+                if let error = error {
+                    self.alertMessage = "Error verifying unique code and email: \(error.localizedDescription)"
+                    self.showAlert = true
+                } else if let document = snapshot?.documents.first,
+                          let viID = document.data()["VI_ID"] as? String {
+                    self.loadUserEmailAndSignIn(viID: viID)
+                } else {
+                    self.alertMessage = "Invalid unique code or email."
+                    self.showAlert = true
+                }
+            }
+    }
+    
+    private func loadUserEmailAndSignIn(viID: String) {
+        let db = Firestore.firestore()
+        db.collection("Visually_Impaired").document(viID).getDocument { document, error in
+            if let document = document, let email = document.data()?["email"] as? String {
+                self.isLoading = true
+                Auth.auth().signIn(withEmail: email, password: "DefaultPass123!") { authResult, error in
+                    self.isLoading = false
+                    if let error = error {
+                        self.alertMessage = error.localizedDescription
+                        self.showAlert = true
+                    } else {
+                        self.navigateToMainView = true
+                    }
+                }
+            } else {
+                self.alertMessage = "Error retrieving user email."
+                self.showAlert = true
+            }
+        }
+    }
+    private func attemptSignInOnline() {
+        isLoading = true
+        Firestore.firestore().collection("Guardian")
+            .whereField("uniqueCode", isEqualTo: uniqueCode.uppercased())
+            .whereField("visuallyImpairedEmail", isEqualTo: email)
+            .getDocuments { snapshot, error in
+                self.isLoading = false
+                if let error = error {
+                    self.alertMessage = "Error verifying unique code and email: \(error.localizedDescription)"
+                    self.showAlert = true
+                    return
+                }
+                
+                guard let document = snapshot?.documents.first,
+                      let viID = document.data()["VI_ID"] as? String else {
+                    self.alertMessage = "Invalid unique code or email."
+                    self.showAlert = true
+                    return
+                }
+                
+                self.authenticateUserWithEmail(viID: viID)
+            }
+    }
+    
+    private func authenticateUserWithEmail(viID: String) {
+        isLoading = true
+        let db = Firestore.firestore()
+        db.collection("Visually_Impaired").document(viID).getDocument { document, error in
+            self.isLoading = false
+            if let error = error {
+                self.alertMessage = "Error retrieving user email: \(error.localizedDescription)"
+                self.showAlert = true
+                return
+            }
+            
+            guard let document = document, let email = document.data()?["email"] as? String else {
+                self.alertMessage = "No user found for this unique code."
+                self.showAlert = true
+                return
+            }
+            
+            self.signInWithFirebase(email: email)
         }
     }
     
-    // MARK: - Online Sign-In
-    private func attemptSignInOnline() {
+    private func signInWithFirebase(email: String) {
         isLoading = true
-        Auth.auth().signIn(withEmail: email, password: password) { authResult, error in
-            isLoading = false
+        Auth.auth().signIn(withEmail: email, password: "DefaultPass123!") { authResult, error in
+            self.isLoading = false
             if let error = error {
-                self.handleAuthError(error)
+                self.handleFirebaseSignInError(error)
                 return
             }
             
             guard let user = authResult?.user else {
-                alertMessage = "Unexpected error: User not found after successful sign-in."
-                showAlert = true
+                self.alertMessage = "Authentication failed. Please try again."
+                self.showAlert = true
                 return
             }
             
             guard user.isEmailVerified else {
-                alertMessage = "Your email is not verified. Please check your inbox."
-                showAlert = true
+                self.alertMessage = "Your email is not verified. Please check your inbox."
+                self.showAlert = true
                 return
             }
             
-            // Save token and cache user profile
-            if let token = user.refreshToken {
-                KeychainHelper.shared.saveToken(token, forKey: "AuthToken")
-            }
-            
-            Firestore.firestore().collection("Visually_Impaired")
-                .document(user.uid)
-                .getDocument { document, error in
-                    if let document = document, document.exists {
-                        UserProfileCache.shared.saveProfile(document.data() ?? [:])
-                        navigateToMainView = true
-                    } else {
-                        alertMessage = "Failed to load user profile."
-                        showAlert = true
-                    }
-                }
+            // Navigate to the main view after successful sign-in
+            self.navigateToMainView = true
         }
     }
     
-    // MARK: - Offline Sign-In
-    private func attemptSignInOffline() {
-        if let token = KeychainHelper.shared.getToken(forKey: "AuthToken"),
-           let cachedProfile = UserProfileCache.shared.getProfile() {
-            print("Offline sign-in successful with cached profile: \(cachedProfile)")
-            navigateToMainView = true
-        } else {
-            alertMessage = "Offline sign-in failed. Please connect to the internet and try again."
-            showAlert = true
-        }
-    }
-    
-    // MARK: - Error Handling
-    private func handleAuthError(_ error: Error) {
+    private func handleFirebaseSignInError(_ error: Error) {
         if let authError = AuthErrorCode(rawValue: error._code) {
             switch authError {
             case .networkError:
-                alertMessage = "Network error occurred. Please check your internet connection and try again."
-            case .wrongPassword:
-                alertMessage = "The password is incorrect."
-            case .invalidEmail:
-                alertMessage = "The email address is invalid."
+                alertMessage = "Network error occurred. Please check your connection and try again."
             case .userNotFound:
-                alertMessage = "No account found for this email."
+                alertMessage = "No user found for this email."
+            case .wrongPassword:
+                alertMessage = "Invalid password. Please try again."
+            case .invalidEmail:
+                alertMessage = "Invalid email format."
             default:
-                alertMessage = "Sign-in failed due to an unexpected error: \(error.localizedDescription). Please try again."
+                alertMessage = "Authentication failed: \(error.localizedDescription)"
             }
         } else {
-            alertMessage = "An unknown error occurred: \(error.localizedDescription)"
+            alertMessage = "An unexpected error occurred: \(error.localizedDescription)"
         }
         showAlert = true
     }
     
-    // MARK: - Loading Overlay
-    private var loadingOverlay: some View {
-        Group {
-            if isLoading {
-                Color.black.opacity(0.4)
-                    .edgesIgnoringSafeArea(.all)
-                ProgressView("Loading...")
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
-            }
+    struct VISignUpSignInView_Previews: PreviewProvider {
+        static var previews: some View {
+            VISignUpSignInView()
         }
-    }
-}
-
-struct VISignUpSignInView_Previews: PreviewProvider {
-    static var previews: some View {
-        VISignUpSignInView()
     }
 }
