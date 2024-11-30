@@ -38,7 +38,8 @@ struct SettingsView: View {
                             .padding(.top, 50)
                         Spacer()
                     }
-                    
+
+                    // User profile section
                     VStack {
                         HStack {
                             Image(systemName: "person.circle.fill")
@@ -58,7 +59,8 @@ struct SettingsView: View {
                         .shadow(radius: 2)
                         .padding(.horizontal)
                     }
-                    
+
+                     // Account settings section
                     VStack(alignment: .leading, spacing: 15) {
                         Text("Account Settings")
                             .font(.subheadline)
@@ -66,6 +68,7 @@ struct SettingsView: View {
                             .padding(.leading)
                         
                         Button(action: { showChangePassword = true }) {
+                          // Button to change password
                             HStack {
                                 Text("Change password")
                                     .foregroundColor(.black)
@@ -84,13 +87,15 @@ struct SettingsView: View {
                         }
                     }
                     .padding(.top)
-                    
+
+                     // More settings section (About, Privacy, Terms)
                     VStack(alignment: .leading, spacing: 15) {
                         Text("More")
                             .font(.subheadline)
                             .foregroundColor(.gray)
                             .padding(.leading)
-                        
+
+                        // About Us button
                         Button(action: { showAboutUs.toggle() }) {
                             HStack {
                                 Text("About us")
@@ -108,7 +113,8 @@ struct SettingsView: View {
                         .sheet(isPresented: $showAboutUs) {
                             AboutUsView()
                         }
-                        
+
+                        // Privacy Policy button
                         Button(action: { showPrivacyPolicy.toggle() }) {
                             HStack {
                                 Text("Privacy policy")
@@ -126,7 +132,8 @@ struct SettingsView: View {
                         .sheet(isPresented: $showPrivacyPolicy) {
                             PrivacyPolicyView()
                         }
-                        
+
+                        // Terms and Conditions button
                         Button(action: { showTermsConditions.toggle() }) {
                             HStack {
                                 Text("Terms and conditions")
@@ -199,7 +206,8 @@ struct SettingsView: View {
                              }
                          }
                      }
-                     
+                
+    // Fetch user data from Firestore     
     private func fetchUserData() {
         let db = Firestore.firestore()
         guard let user = Auth.auth().currentUser else {
