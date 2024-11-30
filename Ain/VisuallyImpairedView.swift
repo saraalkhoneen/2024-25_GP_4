@@ -205,3 +205,4 @@ struct VisuallyImpairedView_Previews: PreviewProvider {
     }
 }
 
+
