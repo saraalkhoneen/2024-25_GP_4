@@ -42,9 +42,11 @@ struct Notification: Identifiable {
 }
 
 struct GuardianView: View {
-    private let db = Firestore.firestore() // Firestore reference
+// Firestore reference to interact with the Firestore database
+    private let db = Firestore.firestore() 
     private let firstTimeLoginKey = "hasLoggedInAfterSignUp"
 
+// States for managing UI and user data
     @State private var uniqueCode: String = ""
     @State private var guardianName: String = ""
     @State private var selectedTab: Int = 2
@@ -55,8 +57,10 @@ struct GuardianView: View {
         ZStack(alignment: .bottom) {
             Color.white.edgesIgnoringSafeArea(.all)
             
+// TabView to navigate between different sections
             TabView(selection: $selectedTab) {
                 
+               // Notifications tab
                 NotificationsView1(notifications: $notifications)
                     .tabItem {
                         Image(systemName: "bell.fill")
@@ -64,7 +68,8 @@ struct GuardianView: View {
                     }
                     .tag(0)
                     .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
-                
+
+                // Media tab
                 MediaView1()
                     .tabItem {
                         Image(systemName: "photo.fill")
@@ -75,10 +80,12 @@ struct GuardianView: View {
                 
                 NavigationView {
                     VStack {
+                         //logo
                         Image("icon")
                             .resizable()
                             .frame(width: 110, height: 110)
-                        
+
+                        // Greeting with unique code and name
                         VStack(spacing: 10) {
                             Text("Hello \(guardianName)")
                                 .font(.title)
@@ -137,7 +144,8 @@ struct GuardianView: View {
                     Text("Home")
                 }
                 .tag(2)
-                
+
+                //Location tab
                 LocationView()
                     .tabItem {
                         Image(systemName: "location.fill")
@@ -145,7 +153,8 @@ struct GuardianView: View {
                     }
                     .tag(3)
                     .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
-                
+
+                // Settings tab
                 SettingsView()
                     .tabItem {
                         Image(systemName: "gearshape.fill")
@@ -162,7 +171,8 @@ struct GuardianView: View {
 
         }
     }
-    
+
+    // Fetch the guardian's unique code and name from Firestore
     private func fetchGuardianData() {
         if let user = Auth.auth().currentUser {
             db.collection("Guardian").document(user.uid).getDocument { (document, error) in
