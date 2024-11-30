@@ -24,7 +24,7 @@ struct VisuallyImpairedView: View {
     }
 }
 
-// SwiftUI View to display the Camera feed
+// SwiftUI View for displaying the camera feed and starting object detection
 struct CameraTabView: View {
     @StateObject private var cameraManager = CameraManager()
     
@@ -53,7 +53,7 @@ struct CameraTabView: View {
     }
 }
 
-// Class to manage the Camera
+// Class to manage the camera
 class CameraManager: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
