@@ -24,7 +24,7 @@ struct VisuallyImpairedView: View {
     }
 }
 
-// SwiftUI View for displaying the camera feed and starting object detection
+// SwiftUI View to display the Camera feed
 struct CameraTabView: View {
     @StateObject private var cameraManager = CameraManager()
     
@@ -35,16 +35,30 @@ struct CameraTabView: View {
             
             VStack {
                 Spacer()
-                Button(action: {
-                    cameraManager.startLiveStream()
-                }) {
-                    Text("Start Detection")
-                        .padding()
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                
+                if cameraManager.isDetectionRunning {
+                    Button(action: {
+                        cameraManager.stopLiveStream()
+                    }) {
+                        Text("Stop Detection")
+                            .padding()
+                            .background(Color.gray)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                    }
+                    .padding(.bottom, 50)
+                } else {
+                    Button(action: {
+                        cameraManager.startLiveStream()
+                    }) {
+                        Text("Start Detection")
+                            .padding()
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                    }
+                    .padding(.bottom, 50)
                 }
-                .padding(.bottom, 50)
             }
         }
         .onAppear {
@@ -53,17 +67,20 @@ struct CameraTabView: View {
     }
 }
 
-// Class to manage the camera
+// Camera Manager
 class CameraManager: NSObject, ObservableObject {
     let session = AVCaptureSession()
     private let videoOutput = AVCaptureVideoDataOutput()
     private let speechSynthesizer = AVSpeechSynthesizer()
     private var model: VNCoreMLModel?
     private var lastFrameTime = Date()
-    private var lastDetectionTime: Date?
+    private var lastDetectionTime = Date()
     private var lastAnnouncedObject: String?
-    private let framesPerSecond = 2
-    private let allowedClasses = ["Mouse", "Light Switch", "Hand", "Earbud", "Door", "Board", "Airpods Case"] 
+    private var lastAnnouncementTime = Date() // Track the time of the last announcement
+    private let framesPerSecond = 5 // Adjusted for smoother detection
+    private let allowedClasses = ["Desk", "Light Switch", "Hand", "Earbud", "Door", "Board", "Airpods Case", "Oumy", "Juju", "Laptop", "Projector", "Trash Can", "Outlet", "Cellphone", "Chair", "Fire Extinguisher", "Glasses", "Podium", "Keyboard", "Pencil", "Exit sign", "Poster", "Water Bottle"]
+
+    @Published var isDetectionRunning = false
 
     override init() {
         super.init()
@@ -99,16 +116,23 @@ class CameraManager: NSObject, ObservableObject {
         }
 
         session.commitConfiguration()
+        session.startRunning() // Camera feed always runs
     }
 
     func startLiveStream() {
-        session.startRunning()
+        isDetectionRunning = true
         announceDetectionStart()
+        scheduleNothingAnnouncement()
+    }
+
+    func stopLiveStream() {
+        isDetectionRunning = false
+        announceDetectionStop()
     }
 
     private func configureCoreMLModel() {
         do {
-            let coreMLModel = try AinModel_2(configuration: MLModelConfiguration())
+            let coreMLModel = try AinModel_1(configuration: MLModelConfiguration())
             model = try VNCoreMLModel(for: coreMLModel.model)
             print("Model loaded successfully.")
         } catch {
@@ -117,10 +141,11 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func processFrame(imageBuffer: CVImageBuffer) {
-        guard let model = model else {
-            print("Error: Core ML model is not loaded.")
-            return
-        }
+        guard let model = model, isDetectionRunning else { return }
+
+        let now = Date()
+        if now.timeIntervalSince(lastFrameTime) < 1.0 / Double(framesPerSecond) { return }
+        lastFrameTime = now
 
         let request = VNCoreMLRequest(model: model) { [weak self] request, error in
             if let results = request.results as? [VNRecognizedObjectObservation] {
@@ -139,23 +164,28 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func handleDetectionResults(_ results: [VNRecognizedObjectObservation]) {
-        for observation in results {
-            guard let label = observation.labels.first?.identifier else { continue }
+        guard let label = results.first?.labels.first?.identifier, allowedClasses.contains(label) else { return }
 
-            // Skip if the class is not in the allowed list
-            if !allowedClasses.contains(label) { continue }
-
-            // Announce only if the object changes
-            if label != lastAnnouncedObject {
-                lastAnnouncedObject = label
-                announceDetectedObject(label)
-            }
+        let now = Date()
+        if label != lastAnnouncedObject, now.timeIntervalSince(lastAnnouncementTime) > 1 { // Wait at least 1 seconds
+            lastAnnouncedObject = label
+            lastDetectionTime = now
+            lastAnnouncementTime = now
+            announceDetectedObject(label)
         }
     }
 
     private func announceDetectionStart() {
         let utterance = AVSpeechUtterance(string: "Starting detection.")
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-UK")
+        DispatchQueue.main.async {
+            self.speechSynthesizer.speak(utterance)
+        }
+    }
+
+    private func announceDetectionStop() {
+        let utterance = AVSpeechUtterance(string: "Stopping detection.")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-UK")
         DispatchQueue.main.async {
             self.speechSynthesizer.speak(utterance)
         }
@@ -163,7 +193,25 @@ class CameraManager: NSObject, ObservableObject {
 
     private func announceDetectedObject(_ object: String) {
         let utterance = AVSpeechUtterance(string: "\(object)")
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-UK")
+        DispatchQueue.main.async {
+            self.speechSynthesizer.speak(utterance)
+        }
+    }
+
+    private func scheduleNothingAnnouncement() {
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) { [weak self] in
+            guard let self = self else { return }
+            if Date().timeIntervalSince(self.lastDetectionTime) >= 5, self.isDetectionRunning {
+                self.announceNothingDetected()
+                self.scheduleNothingAnnouncement() // Reschedule
+            }
+        }
+    }
+
+    private func announceNothingDetected() {
+        let utterance = AVSpeechUtterance(string: "Nothing.")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-UK")
         DispatchQueue.main.async {
             self.speechSynthesizer.speak(utterance)
         }
@@ -172,16 +220,12 @@ class CameraManager: NSObject, ObservableObject {
 
 extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        let now = Date()
-        if now.timeIntervalSince(lastFrameTime) < 1.0 / Double(framesPerSecond) { return }
-        lastFrameTime = now
-
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         processFrame(imageBuffer: imageBuffer)
     }
 }
 
-// UIViewRepresentable for Camera Preview in SwiftUI
+// Camera Preview
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
     
@@ -191,18 +235,19 @@ struct CameraPreviewView: UIViewRepresentable {
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = UIScreen.main.bounds
         view.layer.addSublayer(previewLayer)
-        session.startRunning()
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {}
 }
 
-// Preview for Visually Impaired View
+
+// Preview
 struct VisuallyImpairedView_Previews: PreviewProvider {
     static var previews: some View {
         VisuallyImpairedView()
     }
 }
+
 
 
