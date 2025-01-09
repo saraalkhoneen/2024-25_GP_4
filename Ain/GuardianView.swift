@@ -2,6 +2,8 @@ import SwiftUI
 import Firebase
 import FirebaseAuth
 import FirebaseFirestore
+import AVKit
+import FirebaseStorage
 
 // Model for Notification
 struct Notification: Identifiable {
@@ -42,25 +44,21 @@ struct Notification: Identifiable {
 }
 
 struct GuardianView: View {
-// Firestore reference to interact with the Firestore database
-    private let db = Firestore.firestore() 
+    private let db = Firestore.firestore() // Firestore reference
     private let firstTimeLoginKey = "hasLoggedInAfterSignUp"
-
-// States for managing UI and user data
+    
     @State private var uniqueCode: String = ""
     @State private var guardianName: String = ""
     @State private var selectedTab: Int = 2
     @State private var notifications: [Notification] = []
     @State private var isShowingCommandView = false // State to control sheet presentation
-
+    
     var body: some View {
         ZStack(alignment: .bottom) {
             Color.white.edgesIgnoringSafeArea(.all)
             
-// TabView to navigate between different sections
             TabView(selection: $selectedTab) {
                 
-               // Notifications tab
                 NotificationsView1(notifications: $notifications)
                     .tabItem {
                         Image(systemName: "bell.fill")
@@ -68,8 +66,7 @@ struct GuardianView: View {
                     }
                     .tag(0)
                     .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
-
-                // Media tab
+                
                 MediaView1()
                     .tabItem {
                         Image(systemName: "photo.fill")
@@ -80,12 +77,10 @@ struct GuardianView: View {
                 
                 NavigationView {
                     VStack {
-                         //logo
                         Image("icon")
                             .resizable()
                             .frame(width: 110, height: 110)
-
-                        // Greeting with unique code and name
+                        
                         VStack(spacing: 10) {
                             Text("Hello \(guardianName)")
                                 .font(.title)
@@ -117,23 +112,23 @@ struct GuardianView: View {
                             Spacer(minLength: 60)
                             
                             // Button to open CommandView in a sheet
-                                                      Button(action: {
-                                                          isShowingCommandView = true
-                                                      }) {
-                                                          Text("How to get started")
-                                                              .foregroundColor(.white)
-                                                              .padding()
-                                                              .frame(maxWidth: .infinity)
-                                                              .background(Color(hexString: "1A3E48"))
-                                                              .cornerRadius(10)
-                                                              .shadow(radius: 5)
-                                                      }
-                                                      .padding(.horizontal, 20)
-                                                      .padding(.bottom, 30)
-                                                      .sheet(isPresented: $isShowingCommandView) {
-                                                          CommandView()
-                                                      }
-                                                  }
+                            Button(action: {
+                                isShowingCommandView = true
+                            }) {
+                                Text("How to get started")
+                                    .foregroundColor(.white)
+                                    .padding()
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color(hexString: "1A3E48"))
+                                    .cornerRadius(10)
+                                    .shadow(radius: 5)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 30)
+                            .sheet(isPresented: $isShowingCommandView) {
+                                CommandView()
+                            }
+                        }
                         .navigationBarBackButtonHidden(true)
                     }
                     .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
@@ -144,8 +139,7 @@ struct GuardianView: View {
                     Text("Home")
                 }
                 .tag(2)
-
-                //Location tab
+                
                 LocationView()
                     .tabItem {
                         Image(systemName: "location.fill")
@@ -153,8 +147,7 @@ struct GuardianView: View {
                     }
                     .tag(3)
                     .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
-
-                // Settings tab
+                
                 SettingsView()
                     .tabItem {
                         Image(systemName: "gearshape.fill")
@@ -164,15 +157,14 @@ struct GuardianView: View {
                     .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
                 
             }
-           
+            
         }
         .onAppear {
             fetchGuardianData()
-
+            
         }
     }
-
-    // Fetch the guardian's unique code and name from Firestore
+    
     private func fetchGuardianData() {
         if let user = Auth.auth().currentUser {
             db.collection("Guardian").document(user.uid).getDocument { (document, error) in
@@ -187,62 +179,120 @@ struct GuardianView: View {
             uniqueCode = "User not logged in."
         }
     }
+    
+    // Placeholder views
 
-// Placeholder views
-struct MediaView1: View {
-    @State private var showInfoAlert = false
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Text("Media")
-                                    .font(.title)
-                                    .fontWeight(.bold)
-                                    .padding(.top, 20)
-                                    .foregroundColor(Color(hexString: "3C6E71"))
-                                
-                // Info Button with Alert
-                                   Button(action: {
-                                       showInfoAlert.toggle()
-                                   }) {
-                                       Image(systemName: "questionmark.circle")
-                                           .foregroundColor(Color(hexString: "3C6E71"))
-                                           .font(.title2)
-                                   }
-                                   .alert(isPresented: $showInfoAlert) {
-                                       Alert(
-                                           title: Text("Info"),
-                                           message: Text("Media such as videos and pictures will appear here when uploaded."),
-                                           dismissButton: .default(Text("OK"))
-                                       )
-                                   }
-                               
-                Spacer()
-                
-                // Message indicating no media available
-                VStack(spacing: 10) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 80, height: 80)
-                        .foregroundColor(.gray)
-                    
-                    Text("No videos or pictures yet")
-                        .font(.headline)
-                        .foregroundColor(.gray)
-                    
-                    Text("When the media uploaded, it will appear here.")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
+    struct MediaView1: View {
+        @State private var mediaURLs: [URL] = [] // To store fetched media URLs
+        @State private var isLoading = true // Loading state
+
+        var body: some View {
+            NavigationView {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        Text("Media")
+                            .font(.title)
+                            .fontWeight(.bold)
+                            .padding(.top, 20)
+                            .foregroundColor(Color(hexString: "3C6E71"))
+
+                        if isLoading {
+                            ProgressView("Loading media...")
+                                .padding()
+                        } else if mediaURLs.isEmpty {
+                            // Placeholder when no media is available
+                            VStack(spacing: 10) {
+                                Image(systemName: "photo.on.rectangle.angled")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 80, height: 80)
+                                    .foregroundColor(.gray)
+
+                                Text("No media available")
+                                    .font(.headline)
+                                    .foregroundColor(.gray)
+
+                                Text("Uploaded photos and videos will appear here.")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 40)
+                            }
+                        } else {
+                            // Display media in a grid
+                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
+                                ForEach(mediaURLs, id: \.self) { url in
+                                    if url.pathExtension.lowercased() == "jpg" {
+                                        // Show images
+                                        AsyncImage(url: url) { image in
+                                            image
+                                                .resizable()
+                                                .scaledToFit()
+                                                .cornerRadius(10)
+                                        } placeholder: {
+                                            ProgressView()
+                                        }
+                                        .frame(height: 150)
+                                    } else if url.pathExtension.lowercased() == "mov" {
+                                        // Show videos
+                                        VideoPlayerView(videoURL: url)
+                                            .frame(height: 150)
+                                            .cornerRadius(10)
+                                    }
+                                }
+                            }
+                            .padding()
+                        }
+                    }
+                    .onAppear {
+                        fetchMediaFromStorage()
+                    }
+                }
+                .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
+            }
+        }
+
+        private func fetchMediaFromStorage() {
+            let storageRef = Storage.storage().reference().child("media/videos")
+
+            
+            storageRef.listAll { result, error in
+                if let error = error {
+                    print("Error listing media files: \(error.localizedDescription)")
+                    isLoading = false
+                    return
                 }
                 
-                Spacer()
+                guard let result = result else {
+                    print("No media found.")
+                    isLoading = false
+                    return
+                }
+
+                var fetchedURLs: [URL] = []
+                let dispatchGroup = DispatchGroup()
+
+                for item in result.items {
+                    dispatchGroup.enter()
+                    item.downloadURL { url, error in
+                        if let error = error {
+                            print("Error fetching media URL: \(error.localizedDescription)")
+                        } else if let url = url {
+                            fetchedURLs.append(url)
+                        }
+                        dispatchGroup.leave()
+                    }
+                }
+
+                dispatchGroup.notify(queue: .main) {
+                    mediaURLs = fetchedURLs
+                    isLoading = false
+                }
             }
-            .background(Color(hexString: "F2F2F2").edgesIgnoringSafeArea(.all))
         }
     }
-    }}
+
+}
 struct AddUserGuideView1: View { var body: some View { Text("Guide on Adding a Visually Impaired User") } }
 struct LocationView1: View { var body: some View { Text("Location Content") } }
 struct SettingsView1: View { var body: some View { Text("Settings Content") } }
@@ -338,6 +388,15 @@ struct NotificationsView1: View {
     struct GuardianView_Previews: PreviewProvider {
     static var previews: some View {
         GuardianView()
+    }
+}
+struct VideoPlayerView: View {
+    let videoURL: URL
+
+    var body: some View {
+        VideoPlayer(player: AVPlayer(url: videoURL))
+            .frame(maxWidth: .infinity)
+            .cornerRadius(10)
     }
 }
 
