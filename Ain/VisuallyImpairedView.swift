@@ -3,6 +3,7 @@ import AVFoundation
 import UIKit
 import CoreML
 import Vision
+import FirebaseStorage
 
 // Main SwiftUI View for Tab Navigation
 struct VisuallyImpairedView: View {
@@ -46,7 +47,7 @@ struct CameraTabView: View {
                             .foregroundColor(.white)
                             .cornerRadius(10)
                     }
-                    .padding(.bottom, 50)
+                    .padding(.bottom, 20)
                 } else {
                     Button(action: {
                         cameraManager.startLiveStream()
@@ -57,8 +58,26 @@ struct CameraTabView: View {
                             .foregroundColor(.white)
                             .cornerRadius(10)
                     }
-                    .padding(.bottom, 50)
+                    .padding(.bottom, 20)
                 }
+                
+                // New Button for Photo & Video Capture
+                Button(action: {
+                    cameraManager.capturePhotoAndVideo { success in
+                        if success {
+                            print("Photo and video saved to Firebase successfully.")
+                        } else {
+                            print("Failed to save photo and video.")
+                        }
+                    }
+                }) {
+                    Text("Capture Photo & Video")
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding(.bottom, 50)
             }
         }
         .onAppear {
@@ -66,6 +85,7 @@ struct CameraTabView: View {
         }
     }
 }
+
 
 // Camera Manager
 class CameraManager: NSObject, ObservableObject {
@@ -81,6 +101,11 @@ class CameraManager: NSObject, ObservableObject {
     private let allowedClasses = ["Desk", "Light Switch", "Hand", "Earbud", "Door", "Board", "Airpods Case", "Oumy", "Juju", "Laptop", "Projector", "Trash Can", "Outlet", "Cellphone", "Chair", "Fire Extinguisher", "Glasses", "Podium", "Keyboard", "Pencil", "Exit sign", "Poster", "Water Bottle"]
 
     @Published var isDetectionRunning = false
+
+    private let photoOutput = AVCapturePhotoOutput() // Added for photo capture
+    private let videoFileOutput = AVCaptureMovieFileOutput() // Added for video recording
+    private var capturedPhotoData: Data? // Store photo data
+    private var isVideoSaved = false // Track video save completion
 
     override init() {
         super.init()
@@ -113,6 +138,14 @@ class CameraManager: NSObject, ObservableObject {
             print("Error: Couldn't add video output.")
             session.commitConfiguration()
             return
+        }
+
+        if session.canAddOutput(photoOutput) {
+            session.addOutput(photoOutput) // Add photo output
+        }
+
+        if session.canAddOutput(videoFileOutput) {
+            session.addOutput(videoFileOutput) // Add video file output
         }
 
         session.commitConfiguration()
@@ -216,7 +249,89 @@ class CameraManager: NSObject, ObservableObject {
             self.speechSynthesizer.speak(utterance)
         }
     }
+
+    // New functionality for capturing photo and video
+    func capturePhotoAndVideo(completion: @escaping (Bool) -> Void) {
+        let outputDirectory = FileManager.default.temporaryDirectory
+        let videoOutputURL = outputDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
+
+        if !videoFileOutput.isRecording {
+            videoFileOutput.startRecording(to: videoOutputURL, recordingDelegate: self)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let photoSettings = AVCapturePhotoSettings()
+            photoSettings.flashMode = .auto
+            self.photoOutput.capturePhoto(with: photoSettings, delegate: self)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            if self.videoFileOutput.isRecording {
+                self.videoFileOutput.stopRecording()
+            }
+
+            DispatchQueue.global().async {
+                while self.capturedPhotoData == nil || !self.isVideoSaved { /* Wait */ }
+                self.uploadMedia(photoData: self.capturedPhotoData!, videoURL: videoOutputURL, completion: completion)
+            }
+        }
+    }
+
+    private func uploadMedia(photoData: Data, videoURL: URL, completion: @escaping (Bool) -> Void) {
+        let storage = Storage.storage()
+        let storageRef = storage.reference()
+
+        let photoRef = storageRef.child("media/photos/\(UUID().uuidString).jpg")
+        let videoRef = storageRef.child("media/videos/\(UUID().uuidString).mov")
+
+        let dispatchGroup = DispatchGroup()
+        var uploadSuccess = true
+
+        dispatchGroup.enter()
+        photoRef.putData(photoData, metadata: nil) { _, error in
+            if let error = error {
+                print("Error uploading photo: \(error.localizedDescription)")
+                uploadSuccess = false
+            }
+            dispatchGroup.leave()
+        }
+
+        dispatchGroup.enter()
+        videoRef.putFile(from: videoURL, metadata: nil) { _, error in
+            if let error = error {
+                print("Error uploading video: \(error.localizedDescription)")
+                uploadSuccess = false
+            }
+            dispatchGroup.leave()
+        }
+
+        dispatchGroup.notify(queue: .main) {
+            completion(uploadSuccess)
+        }
+    }
 }
+
+extension CameraManager: AVCapturePhotoCaptureDelegate {
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        if let error = error {
+            print("Error capturing photo: \(error.localizedDescription)")
+            return
+        }
+        capturedPhotoData = photo.fileDataRepresentation()
+    }
+}
+
+extension CameraManager: AVCaptureFileOutputRecordingDelegate {
+    func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo fileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
+        if let error = error {
+            print("Recording error: \(error.localizedDescription)")
+        } else {
+            print("Video recording finished successfully.")
+            isVideoSaved = true
+        }
+    }
+}
+
 
 extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
@@ -248,6 +363,4 @@ struct VisuallyImpairedView_Previews: PreviewProvider {
         VisuallyImpairedView()
     }
 }
-
-
 
