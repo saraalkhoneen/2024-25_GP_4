@@ -1,8 +1,7 @@
 import SwiftUI
 import Firebase
-import FirebaseAuth
 import FirebaseFirestore
-
+import FirebaseAuth
 // AppState to manage logged-in state
 class AppState: ObservableObject {
     static let shared = AppState()

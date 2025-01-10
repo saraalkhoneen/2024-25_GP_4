@@ -20,7 +20,6 @@
 		979B12BB2CB97E7500F0AE9B /* VISignUpSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 979B12BA2CB97E7500F0AE9B /* VISignUpSignInView.swift */; };
 		979B12BD2CB983CF00F0AE9B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 979B12BC2CB983CE00F0AE9B /* SettingsView.swift */; };
 		979B12BF2CB9853600F0AE9B /* SharedComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 979B12BE2CB9853600F0AE9B /* SharedComponents.swift */; };
-		979B12C12CBBA09200F0AE9B /* ResetPasswordEmailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 979B12C02CBBA09200F0AE9B /* ResetPasswordEmailView.swift */; };
 		979B12C32CBC431900F0AE9B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 979B12C22CBC431900F0AE9B /* GoogleService-Info.plist */; };
 		979B12C62CBC44DD00F0AE9B /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 979B12C52CBC44DD00F0AE9B /* FirebaseAnalytics */; };
 		979B12C82CBC44DD00F0AE9B /* FirebaseAnalyticsOnDeviceConversion in Frameworks */ = {isa = PBXBuildFile; productRef = 979B12C72CBC44DD00F0AE9B /* FirebaseAnalyticsOnDeviceConversion */; };
@@ -37,6 +36,7 @@
 		979B12DE2CBDA54000F0AE9B /* LocationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 979B12DD2CBDA53F00F0AE9B /* LocationView.swift */; };
 		979B12E12CBDA6E600F0AE9B /* CommandView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 979B12E02CBDA6E600F0AE9B /* CommandView.swift */; };
 		979B12E32CBDB24300F0AE9B /* BackgroundWaveShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = 979B12E22CBDB24300F0AE9B /* BackgroundWaveShape.swift */; };
+		CD8B69B32D311EA100C5BF81 /* AinModel_1.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = CD8B69B22D311EA100C5BF81 /* AinModel_1.mlmodel */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,11 +74,11 @@
 		979B12BA2CB97E7500F0AE9B /* VISignUpSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VISignUpSignInView.swift; sourceTree = "<group>"; };
 		979B12BC2CB983CE00F0AE9B /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		979B12BE2CB9853600F0AE9B /* SharedComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedComponents.swift; sourceTree = "<group>"; };
-		979B12C02CBBA09200F0AE9B /* ResetPasswordEmailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordEmailView.swift; sourceTree = "<group>"; };
 		979B12C22CBC431900F0AE9B /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		979B12DD2CBDA53F00F0AE9B /* LocationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationView.swift; sourceTree = "<group>"; };
 		979B12E02CBDA6E600F0AE9B /* CommandView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandView.swift; sourceTree = "<group>"; };
 		979B12E22CBDB24300F0AE9B /* BackgroundWaveShape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWaveShape.swift; sourceTree = "<group>"; };
+		CD8B69B22D311EA100C5BF81 /* AinModel_1.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = AinModel_1.mlmodel; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -142,6 +142,7 @@
 			isa = PBXGroup;
 			children = (
 				978741832CDE8FF40056FA03 /* Info.plist */,
+				CD8B69B22D311EA100C5BF81 /* AinModel_1.mlmodel */,
 				979B128A2CB9599A00F0AE9B /* AinApp.swift */,
 				979B128C2CB9599A00F0AE9B /* ContentView.swift */,
 				979B12E22CBDB24300F0AE9B /* BackgroundWaveShape.swift */,
@@ -152,7 +153,6 @@
 				979B12B82CB97C7A00F0AE9B /* SignUpSignInView.swift */,
 				979B12BA2CB97E7500F0AE9B /* VISignUpSignInView.swift */,
 				979B12B62CB9730F00F0AE9B /* GuardianView.swift */,
-				979B12C02CBBA09200F0AE9B /* ResetPasswordEmailView.swift */,
 				979B12BC2CB983CE00F0AE9B /* SettingsView.swift */,
 				979B12DD2CBDA53F00F0AE9B /* LocationView.swift */,
 				979B12E02CBDA6E600F0AE9B /* CommandView.swift */,
@@ -337,9 +337,9 @@
 				979B12BD2CB983CF00F0AE9B /* SettingsView.swift in Sources */,
 				979B12B92CB97C7A00F0AE9B /* SignUpSignInView.swift in Sources */,
 				979B128D2CB9599A00F0AE9B /* ContentView.swift in Sources */,
+				CD8B69B32D311EA100C5BF81 /* AinModel_1.mlmodel in Sources */,
 				979B12E12CBDA6E600F0AE9B /* CommandView.swift in Sources */,
 				979B128B2CB9599A00F0AE9B /* AinApp.swift in Sources */,
-				979B12C12CBBA09200F0AE9B /* ResetPasswordEmailView.swift in Sources */,
 				979B12BB2CB97E7500F0AE9B /* VISignUpSignInView.swift in Sources */,
 				979B12B52CB972DE00F0AE9B /* VisuallyImpairedView.swift in Sources */,
 				979B12DE2CBDA54000F0AE9B /* LocationView.swift in Sources */,
@@ -509,11 +509,14 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Ain/Preview Content\"";
-				DEVELOPMENT_TEAM = 3MMY4G53SX;
+				DEVELOPMENT_TEAM = 57SPNFPCM5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Ain/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera to assist visually impaired users by identifying objects.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "This app uses Bluetooth to connect to GoPro for recording and remote control.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera to assist visually impaired users by identifying objects and recording videos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We use your location to check the connected Wi-Fi network.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We need access to save recorded videos to your photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -524,7 +527,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.gp.Ain;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gp2.Ain1;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -540,11 +543,14 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Ain/Preview Content\"";
-				DEVELOPMENT_TEAM = 3MMY4G53SX;
+				DEVELOPMENT_TEAM = 57SPNFPCM5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Ain/Info.plist;
-				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera to assist visually impaired users by identifying objects.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "This app uses Bluetooth to connect to GoPro for recording and remote control.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We use the camera to assist visually impaired users by identifying objects and recording videos.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We use your location to check the connected Wi-Fi network.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We need access to save recorded videos to your photo library.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -555,7 +561,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.gp.Ain;
+				PRODUCT_BUNDLE_IDENTIFIER = com.gp2.Ain1;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
