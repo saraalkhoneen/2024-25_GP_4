@@ -70,10 +70,27 @@ class UserProfileCache {
 // MARK: - VISignUpSignInView
 struct VISignUpSignInView: View {
     @State private var selectedTab: String = "Sign Up"
+    @Environment(\.presentationMode) var presentationMode // Access presentation mode for navigation
     
     var body: some View {
         NavigationView {
             VStack {
+                HStack {
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss() // Go back to ContentView
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(.blue)
+                            Text("Back")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .padding(.top, 10)
+                    .padding(.leading, 10)
+                    
+                    Spacer()
+                }
                 TopCurveShape()
                     .fill(Color(hexString: "3C6E71"))
                     .frame(height: 40)

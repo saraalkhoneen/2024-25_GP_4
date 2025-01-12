@@ -5,10 +5,27 @@ import FirebaseFirestore
 
 struct SignUpSignInView: View {
     @State private var selectedTab: String = "Sign up"
+    @Environment(\.presentationMode) var presentationMode // Access presentation mode for navigation
     
     var body: some View {
         NavigationView {
             VStack {
+                HStack {
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss() // Go back to ContentView
+                    }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(.blue)
+                            Text("Back")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                    .padding(.top, 10)
+                    .padding(.leading, 10)
+                    
+                    Spacer()
+                }
                 // Top background curve
                 TopCurveShape()
                     .fill(Color(hexString: "3C6E71"))
