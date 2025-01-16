@@ -4,6 +4,7 @@ import FirebaseAuth
 import FirebaseFirestore
 import FirebaseStorage
 import AVKit
+import MapKit
 
 struct GuardianView: View {
     private let db = Firestore.firestore()
@@ -99,7 +100,7 @@ struct GuardianView: View {
                 }
                 .tag(2)
                 
-                LocationView()
+                VITrackingView()
                     .tabItem {
                         Image(systemName: "location.fill")
                         Text("Location")
@@ -545,13 +546,139 @@ struct GuardianView: View {
                 .cornerRadius(10)
         }
     }
+struct LocationAnnotation: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
+}
+
+
+struct VITrackingView: View {
+    @State private var region = MKCoordinateRegion(
+        center: CLLocationCoordinate2D(latitude: 0, longitude: 0),
+        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+    )
+    @State private var locationAnnotation: [LocationAnnotation] = []
+    @State private var locationAvailable = false
+    @State private var viName: String = "Location" // Default title
+    @State private var lastUpdated: String = "" // Store last update time
     
-    struct LocationView1: View {
-        var body: some View {
-            Text("Location Content")
+    var body: some View {
+        NavigationView {
+            VStack {
+                if locationAvailable {
+                    Map(coordinateRegion: $region, annotationItems: locationAnnotation) { annotation in
+                        MapPin(coordinate: annotation.coordinate, tint: .red)
+                    }
+                    .edgesIgnoringSafeArea(.all)
+                    
+                    if !lastUpdated.isEmpty {
+                        Text("Last updated: \(lastUpdated)")
+                            .font(.footnote)
+                            .foregroundColor(.gray)
+                            .padding(.top, 8)
+                    }
+                } else {
+                    Text("Waiting for location...")
+                        .foregroundColor(.gray)
+                }
+            }
+            .onAppear(perform: fetchLocation)
+            .navigationTitle(viName)
         }
     }
     
+    /// Fetches the location and user information
+    private func fetchLocation() {
+        guard let user = Auth.auth().currentUser else {
+            print("Error: User not logged in.")
+            return
+        }
+        
+        let db = Firestore.firestore()
+        db.collection("Locations")
+            .document(user.uid)
+            .addSnapshotListener { documentSnapshot, error in
+                if let error = error {
+                    print("Error fetching location: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let data = documentSnapshot?.data() else {
+                    print("No data in location document.")
+                    return
+                }
+                
+                print("Location data fetched: \(data)")
+                
+                // Update location
+                if let latitude = data["latitude"] as? CLLocationDegrees,
+                   let longitude = data["longitude"] as? CLLocationDegrees {
+                    let newCoordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                    DispatchQueue.main.async {
+                        self.locationAnnotation = [LocationAnnotation(coordinate: newCoordinate)]
+                        self.region.center = newCoordinate
+                        self.locationAvailable = true
+                    }
+                }
+                
+                // Update last updated time
+                if let timestamp = data["timestamp"] as? Timestamp {
+                    let date = timestamp.dateValue()
+                    DispatchQueue.main.async {
+                        self.lastUpdated = formatDate(date)
+                    }
+                }
+                
+                // Update VI name directly if available
+                if let firstName = data["firstName"] as? String,
+                   let lastName = data["lastName"] as? String {
+                    DispatchQueue.main.async {
+                        self.viName = "\(firstName) \(lastName)'s Location"
+                    }
+                } else if let visuallyImpairedEmail = data["viEmail"] as? String {
+                    // Fallback to fetch name using email
+                    fetchVIName(email: visuallyImpairedEmail)
+                }
+            }
+    }
+    
+    /// Fallback function to fetch VI name using email
+    private func fetchVIName(email: String) {
+        let db = Firestore.firestore()
+        db.collection("Visually_Impaired")
+            .whereField("email", isEqualTo: email)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error fetching VI name: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let document = snapshot?.documents.first else {
+                    print("No document found for email: \(email)")
+                    return
+                }
+                
+                let data = document.data()
+                if let firstName = data["firstName"] as? String,
+                   let lastName = data["lastName"] as? String {
+                    DispatchQueue.main.async {
+                        self.viName = "\(firstName) \(lastName)'s Location"
+                        print("Fetched name: \(self.viName)")
+                    }
+                }
+            }
+    }
+    
+    /// Formats a date to a readable string
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+
     struct SettingsView1: View {
         var body: some View {
             Text("Settings Content")

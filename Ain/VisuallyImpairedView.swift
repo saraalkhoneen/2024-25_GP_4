@@ -6,8 +6,12 @@ import Vision
 import FirebaseStorage
 import Firebase
 import FirebaseAuth
+import CoreLocation
+
 
 struct VisuallyImpairedView: View {
+    @StateObject private var locationManager = LocationManager()
+
     var body: some View {
         TabView {
             CameraTabView()
@@ -22,9 +26,138 @@ struct VisuallyImpairedView: View {
                     Text("Settings")
                 }
         }
+        .onAppear {
+            locationManager.startUpdatingLocation()
+        }
         .navigationBarHidden(true)
     }
 }
+
+struct LocationSharingView: View {
+    @ObservedObject var locationManager: LocationManager
+    
+    var body: some View {
+        VStack {
+            if let location = locationManager.lastKnownLocation {
+                Text("Latitude: \(location.latitude)")
+                Text("Longitude: \(location.longitude)")
+                
+                Button("Share Location") {
+                    shareLocation(location: location)
+                }
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+            } else {
+                Text("Fetching location...")
+            }
+        }
+        .padding()
+    }
+    
+    private func shareLocation(location: CLLocationCoordinate2D) {
+        guard let userEmail = Auth.auth().currentUser?.email else {
+            print("Error: User not logged in")
+            return
+        }
+        
+        let db = Firestore.firestore()
+        db.collection("Guardian")
+            .whereField("visuallyImpairedEmail", isEqualTo: userEmail)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error fetching guardian UID: \(error.localizedDescription)")
+                    return
+                }
+                
+                if let guardianDoc = snapshot?.documents.first {
+                    let guardianUID = guardianDoc.documentID
+                    db.collection("Locations")
+                        .document(guardianUID)
+                        .setData([
+                            "latitude": location.latitude,
+                            "longitude": location.longitude,
+                            "timestamp": Timestamp(date: Date())
+                        ]) { error in
+                            if let error = error {
+                                print("Error sharing location: \(error.localizedDescription)")
+                            } else {
+                                print("Location shared successfully")
+                            }
+                        }
+                }
+            }
+    }
+    
+}
+class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+    private let locationManager = CLLocationManager()
+
+    @Published var lastKnownLocation: CLLocationCoordinate2D?
+
+    override init() {
+        super.init()
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.requestWhenInUseAuthorization()
+    }
+
+    func startUpdatingLocation() {
+        locationManager.startUpdatingLocation()
+    }
+
+    func stopUpdatingLocation() {
+        locationManager.stopUpdatingLocation()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        DispatchQueue.main.async {
+            self.lastKnownLocation = location.coordinate
+        }
+        self.updateLocationInFirestore(location: location.coordinate)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("Failed to fetch location: \(error.localizedDescription)")
+    }
+
+    private func updateLocationInFirestore(location: CLLocationCoordinate2D) {
+        guard let userEmail = Auth.auth().currentUser?.email else {
+            print("Error: User not logged in")
+            return
+        }
+
+        let db = Firestore.firestore()
+        db.collection("Guardian")
+            .whereField("visuallyImpairedEmail", isEqualTo: userEmail)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error fetching guardian UID: \(error.localizedDescription)")
+                    return
+                }
+
+                if let guardianDoc = snapshot?.documents.first {
+                    let guardianUID = guardianDoc.documentID
+                    db.collection("Locations")
+                        .document(guardianUID)
+                        .setData([
+                            "latitude": location.latitude,
+                            "longitude": location.longitude,
+                            "timestamp": Timestamp(date: Date())
+                        ]) { error in
+                            if let error = error {
+                                print("Error sharing location: \(error.localizedDescription)")
+                            } else {
+                                print("Location updated successfully")
+                            }
+                        }
+                }
+            }
+    }
+}
+
 
 // SwiftUI View to display the Camera feed
 struct CameraTabView: View {
