@@ -253,8 +253,9 @@ struct CameraTabView: View {
                 }
 
                 // Create notification data
+                let notificationId = UUID().uuidString
                 let notification = [
-                    "id": UUID().uuidString,
+                    "id": notificationId,
                     "title": "Help Request",
                     "details": "\(fullName) has requested help. Check the media tab for photos and videos.",
                     "date": Timestamp(date: Date())
@@ -264,16 +265,18 @@ struct CameraTabView: View {
                 db.collection("Notifications")
                     .document(guardianUID)
                     .collection("UserNotifications")
-                    .addDocument(data: notification) { error in
+                    .document(notificationId) // Use the notification's id as the document ID
+                    .setData(notification) { error in
                         if let error = error {
                             print("Error sending notification: \(error.localizedDescription)")
                         } else {
-                            print("Notification sent successfully and collections/documents were created dynamically.")
+                            print("Notification sent successfully with ID: \(notificationId)")
                         }
                     }
             }
         }
     }
+
 
     /// Fetches the user's details (first name, last name) based on their email.
     /// - Parameters:
