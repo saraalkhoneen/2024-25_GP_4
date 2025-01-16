@@ -551,60 +551,83 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func uploadMedia(photoData: Data, videoURL: URL, completion: @escaping (Bool) -> Void) {
-        let storage = Storage.storage()
-        let storageRef = storage.reference()
+        guard let currentUserEmail = Auth.auth().currentUser?.email else {
+            print("Error: User not logged in")
+            completion(false)
+            return
+        }
 
-        let photoRef = storageRef.child("media/photos/\(UUID().uuidString).jpg")
-        let videoRef = storageRef.child("media/videos/\(UUID().uuidString).mov")
-
-        let dispatchGroup = DispatchGroup()
-        var uploadSuccess = true
-
-        dispatchGroup.enter()
-        let photoUploadTask = photoRef.putData(photoData, metadata: nil)
-
-        photoUploadTask.observe(.progress) { snapshot in
-            if let progress = snapshot.progress {
-                DispatchQueue.main.async {
-                    self.uploadProgress = progress.fractionCompleted * 100
-                }
+        // Fetch guardian UID for current VI
+        fetchGuardianUID(forEmail: currentUserEmail) { guardianUID in
+            guard let guardianUID = guardianUID else {
+                print("Error: Guardian UID not found")
+                completion(false)
+                return
             }
-        }
 
-        photoUploadTask.observe(.success) { _ in
-            dispatchGroup.leave()
-        }
+            let storage = Storage.storage()
+            let storageRef = storage.reference()
 
-        photoUploadTask.observe(.failure) { _ in
-            uploadSuccess = false
-            dispatchGroup.leave()
-        }
+            // Store photos and videos under the guardian's UID
+            let photoRef = storageRef.child("media/\(guardianUID)/photos/\(UUID().uuidString).jpg")
+            let videoRef = storageRef.child("media/\(guardianUID)/videos/\(UUID().uuidString).mov")
 
-        dispatchGroup.enter()
-        let videoUploadTask = videoRef.putFile(from: videoURL, metadata: nil)
+            let dispatchGroup = DispatchGroup()
+            var uploadSuccess = true
 
-        videoUploadTask.observe(.progress) { snapshot in
-            if let progress = snapshot.progress {
-                DispatchQueue.main.async {
-                    self.uploadProgress = progress.fractionCompleted * 100
+            // Upload photo
+            dispatchGroup.enter()
+            let photoUploadTask = photoRef.putData(photoData, metadata: nil) { _, error in
+                if let error = error {
+                    print("Photo upload failed: \(error.localizedDescription)")
+                    uploadSuccess = false
                 }
+                dispatchGroup.leave()
             }
-        }
 
-        videoUploadTask.observe(.success) { _ in
-            dispatchGroup.leave()
-        }
+            // Upload video
+            dispatchGroup.enter()
+            let videoUploadTask = videoRef.putFile(from: videoURL, metadata: nil) { _, error in
+                if let error = error {
+                    print("Video upload failed: \(error.localizedDescription)")
+                    uploadSuccess = false
+                }
+                dispatchGroup.leave()
+            }
 
-        videoUploadTask.observe(.failure) { _ in
-            uploadSuccess = false
-            dispatchGroup.leave()
-        }
-
-        dispatchGroup.notify(queue: .main) {
-            self.uploadProgress = 0 // Reset progress
-            completion(uploadSuccess)
+            dispatchGroup.notify(queue: .main) {
+                completion(uploadSuccess)
+            }
         }
     }
+    /// Fetches the guardian UID associated with the visually impaired user's email.
+    /// - Parameters:
+    ///   - email: The visually impaired user's email.
+    ///   - completion: A completion handler that returns the guardian's UID.
+    func fetchGuardianUID(forEmail email: String, completion: @escaping (String?) -> Void) {
+        let db = Firestore.firestore()
+
+        db.collection("Guardian")
+            .whereField("visuallyImpairedEmail", isEqualTo: email)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error fetching Guardian UID: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+
+                guard let document = snapshot?.documents.first else {
+                    print("No guardian found for email: \(email)")
+                    completion(nil)
+                    return
+                }
+
+                let guardianUID = document.documentID
+                print("Guardian UID found: \(guardianUID)")
+                completion(guardianUID)
+            }
+    }
+
 }
 
 extension CameraManager: AVCapturePhotoCaptureDelegate {

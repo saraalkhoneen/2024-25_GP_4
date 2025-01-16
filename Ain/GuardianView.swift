@@ -404,7 +404,13 @@ struct GuardianView: View {
         }
         
         private func fetchPhotos() {
-            let storageRef = Storage.storage().reference().child("media/photos")
+            guard let user = Auth.auth().currentUser else {
+                print("Error: User not logged in")
+                isLoading = false
+                return
+            }
+
+            let storageRef = Storage.storage().reference().child("media/\(user.uid)/photos")
             storageRef.listAll { result, error in
                 if let error = error {
                     print("Error fetching photos: \(error.localizedDescription)")
@@ -431,6 +437,7 @@ struct GuardianView: View {
                 }
             }
         }
+
         
         private func formattedDate(_ date: Date) -> String {
             let formatter = DateFormatter()
@@ -485,7 +492,13 @@ struct GuardianView: View {
         }
         
         private func fetchVideos() {
-            let storageRef = Storage.storage().reference().child("media/videos")
+            guard let user = Auth.auth().currentUser else {
+                print("Error: User not logged in")
+                isLoading = false
+                return
+            }
+
+            let storageRef = Storage.storage().reference().child("media/\(user.uid)/videos")
             storageRef.listAll { result, error in
                 if let error = error {
                     print("Error fetching videos: \(error.localizedDescription)")
@@ -512,7 +525,7 @@ struct GuardianView: View {
                 }
             }
         }
-        
+
         private func formattedDate(_ date: Date) -> String {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
