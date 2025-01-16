@@ -91,10 +91,6 @@ struct VISignUpSignInView: View {
                     
                     Spacer()
                 }
-                TopCurveShape()
-                    .fill(Color(hexString: "3C6E71"))
-                    .frame(height: 40)
-                    .edgesIgnoringSafeArea(.top)
                 
                 Text("Visually Impaired")
                     .font(.headline)

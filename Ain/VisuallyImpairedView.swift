@@ -4,8 +4,9 @@ import UIKit
 import CoreML
 import Vision
 import FirebaseStorage
+import Firebase
+import FirebaseAuth
 
-// Main SwiftUI View for Tab Navigation
 struct VisuallyImpairedView: View {
     var body: some View {
         TabView {
@@ -65,6 +66,7 @@ struct CameraTabView: View {
                             showUploadMessage = true
                         }
                         cameraManager.announceHelpRequest() // Announce that help is requested
+                        sendHelpRequest() // Send help request notification
                     }) {
                         Text("Help Request")
                             .frame(maxWidth: .infinity)
@@ -74,7 +76,6 @@ struct CameraTabView: View {
                             .foregroundColor(.white)
                             .cornerRadius(10)
                     }
-
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 50)
@@ -90,7 +91,105 @@ struct CameraTabView: View {
         .onAppear {
             cameraManager.configure()
         }
-        
+    }
+
+    /// Sends a help request to the guardian by creating a notification in Firestore.
+    func sendHelpRequest() {
+        let db = Firestore.firestore()
+
+        // Fetch the current user's email
+        guard let currentUserEmail = Auth.auth().currentUser?.email else {
+            print("Error: User email not found")
+            return
+        }
+
+        // Fetch the user's details (first name, last name) from Firestore
+        fetchUserDetails(forEmail: currentUserEmail) { userDetails in
+            guard let userDetails = userDetails else {
+                print("Error: User details not found")
+                return
+            }
+
+            let fullName = "\(userDetails["firstName"] ?? "Unknown") \(userDetails["lastName"] ?? "User")"
+
+            // Fetch the guardian UID associated with this visually impaired user's email
+            fetchGuardianUID(forEmail: currentUserEmail) { guardianUID in
+                guard let guardianUID = guardianUID else {
+                    print("Error: Guardian UID not found")
+                    return
+                }
+
+                // Create notification data
+                let notification = [
+                    "id": UUID().uuidString,
+                    "title": "Help Request",
+                    "details": "\(fullName) has requested help. Check the media tab for photos and videos.",
+                    "date": Timestamp(date: Date())
+                ] as [String: Any]
+
+                // Dynamically create collections and documents in Firestore
+                db.collection("Notifications")
+                    .document(guardianUID)
+                    .collection("UserNotifications")
+                    .addDocument(data: notification) { error in
+                        if let error = error {
+                            print("Error sending notification: \(error.localizedDescription)")
+                        } else {
+                            print("Notification sent successfully and collections/documents were created dynamically.")
+                        }
+                    }
+            }
+        }
+    }
+
+    /// Fetches the user's details (first name, last name) based on their email.
+    /// - Parameters:
+    ///   - email: The email of the user.
+    ///   - completion: A completion handler that returns the user's details as a dictionary.
+    func fetchUserDetails(forEmail email: String, completion: @escaping ([String: String]?) -> Void) {
+        let db = Firestore.firestore()
+
+        db.collection("Visually_Impaired")
+            .whereField("email", isEqualTo: email)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error fetching user details: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+
+                if let document = snapshot?.documents.first, let data = document.data() as? [String: String] {
+                    completion(data)
+                } else {
+                    print("No user found with the email: \(email)")
+                    completion(nil)
+                }
+            }
+    }
+    /// Fetches the guardian UID associated with the visually impaired user's email.
+    /// - Parameters:
+    ///   - email: The visually impaired user's email.
+    ///   - completion: A completion handler that returns the guardian's UID.
+    func fetchGuardianUID(forEmail email: String, completion: @escaping (String?) -> Void) {
+        let db = Firestore.firestore()
+
+        db.collection("Guardian")
+            .whereField("visuallyImpairedEmail", isEqualTo: email)
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    print("Error fetching Guardian UID: \(error.localizedDescription)")
+                    completion(nil)
+                    return
+                }
+
+                if let document = snapshot?.documents.first {
+                    print("Guardian UID found: \(document.documentID)")
+                    completion(document.documentID)
+                } else {
+                    print("No guardian found for email: \(email)")
+                    completion(nil)
+                }
+            }
     }
 }
 

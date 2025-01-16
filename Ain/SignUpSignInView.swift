@@ -27,10 +27,7 @@ struct SignUpSignInView: View {
                     Spacer()
                 }
                 // Top background curve
-                TopCurveShape()
-                    .fill(Color(hexString: "3C6E71"))
-                    .frame(height: 40)
-                    .edgesIgnoringSafeArea(.top)
+              
                 
                 // Light gray text on top of the page
                                Text("Guardian")
