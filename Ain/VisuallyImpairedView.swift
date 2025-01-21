@@ -7,6 +7,7 @@ import FirebaseStorage
 import Firebase
 import FirebaseAuth
 import CoreLocation
+import UserNotifications
 
 
 struct VisuallyImpairedView: View {
@@ -230,29 +231,28 @@ struct CameraTabView: View {
     func sendHelpRequest() {
         let db = Firestore.firestore()
 
-        // Fetch the current user's email
         guard let currentUserEmail = Auth.auth().currentUser?.email else {
             print("Error: User email not found")
             return
         }
 
-        // Fetch the user's details (first name, last name) from Firestore
         fetchUserDetails(forEmail: currentUserEmail) { userDetails in
             guard let userDetails = userDetails else {
                 print("Error: User details not found")
                 return
             }
 
+            // Construct the full name
             let fullName = "\(userDetails["firstName"] ?? "Unknown") \(userDetails["lastName"] ?? "User")"
 
-            // Fetch the guardian UID associated with this visually impaired user's email
+            // Fetch the guardian's UID using the visually impaired user's email
             fetchGuardianUID(forEmail: currentUserEmail) { guardianUID in
                 guard let guardianUID = guardianUID else {
                     print("Error: Guardian UID not found")
                     return
                 }
 
-                // Create notification data
+                // Create a notification document
                 let notificationId = UUID().uuidString
                 let notification = [
                     "id": notificationId,
@@ -261,18 +261,40 @@ struct CameraTabView: View {
                     "date": Timestamp(date: Date())
                 ] as [String: Any]
 
-                // Dynamically create collections and documents in Firestore
+                // Save the notification in Firestore
                 db.collection("Notifications")
                     .document(guardianUID)
                     .collection("UserNotifications")
-                    .document(notificationId) // Use the notification's id as the document ID
+                    .document(notificationId)
                     .setData(notification) { error in
                         if let error = error {
                             print("Error sending notification: \(error.localizedDescription)")
                         } else {
                             print("Notification sent successfully with ID: \(notificationId)")
+
+                            // Trigger a local notification
+                            self.triggerLocalNotification(title: "Help Request", body: "\(fullName) has requested help.")
                         }
                     }
+            }
+        }
+    }
+
+
+    /// Triggers a local notification.
+    func triggerLocalNotification(title: String, body: String) {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling local notification: \(error.localizedDescription)")
+            } else {
+                print("Local notification triggered successfully.")
             }
         }
     }

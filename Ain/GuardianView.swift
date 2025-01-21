@@ -5,6 +5,37 @@ import FirebaseFirestore
 import FirebaseStorage
 import AVKit
 import MapKit
+import UserNotifications
+
+class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        guard let currentUser = Auth.auth().currentUser else {
+            completionHandler([])
+            return
+        }
+
+        // Fetch user role to ensure correct targeting
+        let db = Firestore.firestore()
+        db.collection("Guardian").document(currentUser.uid).getDocument { document, error in
+            if let error = error {
+                print("Error fetching user role: \(error.localizedDescription)")
+                completionHandler([])
+                return
+            }
+
+            if document?.exists == true {
+                // Show notification only for guardians
+                completionHandler([.banner, .sound])
+            } else {
+                // Do not show the notification
+                completionHandler([])
+            }
+        }
+    }
+}
+
+
+
 
 struct GuardianView: View {
     private let db = Firestore.firestore()
@@ -15,6 +46,8 @@ struct GuardianView: View {
     @State private var selectedTab: Int = 2
     @State private var notifications: [Notification] = []
     @State private var isShowingCommandView = false
+    private static var notificationListener: ListenerRegistration?
+    
     
     
     var body: some View {
@@ -118,6 +151,16 @@ struct GuardianView: View {
         .onAppear {
             fetchGuardianData()
             setupNotificationListener()
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+                if let error = error {
+                    print("Error requesting notification permissions: \(error.localizedDescription)")
+                } else if granted {
+                    print("Notification permissions granted.")
+                } else {
+                    print("Notification permissions denied.")
+                }
+            }
+            UNUserNotificationCenter.current().delegate = NotificationDelegate()
         }
     }
     
@@ -143,15 +186,43 @@ struct GuardianView: View {
         }
     }
     
+    static func stopNotificationListener() {
+        notificationListener?.remove()
+        notificationListener = nil
+        print("Notification listener detached.")
+    }
+    
     private func setupNotificationListener() {
         guard let user = Auth.auth().currentUser else {
             print("Error: User not logged in.")
             return
         }
-
+        
         let db = Firestore.firestore()
-        db.collection("Notifications")
+        db.collection("Guardian")
             .document(user.uid)
+            .getDocument { document, error in
+                if let error = error {
+                    print("Error verifying user role: \(error.localizedDescription)")
+                    return
+                }
+                
+                // Check if the user is a guardian
+                guard let document = document, document.exists else {
+                    print("This user is not a guardian.")
+                    return
+                }
+                
+                // If the user is a guardian, listen for notifications
+                self.listenForNotifications(userId: user.uid)
+            }
+    }
+    
+    // Helper function to listen for notifications
+    private func listenForNotifications(userId: String) {
+        let db = Firestore.firestore()
+        GuardianView.notificationListener = db.collection("Notifications")
+            .document(userId)
             .collection("UserNotifications")
             .order(by: "date", descending: true)
             .addSnapshotListener { snapshot, error in
@@ -159,45 +230,42 @@ struct GuardianView: View {
                     print("Error fetching notifications: \(error.localizedDescription)")
                     return
                 }
-
+                
                 guard let snapshot = snapshot else {
                     print("Error: Snapshot is nil.")
                     return
                 }
-
-                print("Snapshot received. Document changes count: \(snapshot.documentChanges.count)")
-
+                
                 DispatchQueue.main.async {
                     for change in snapshot.documentChanges {
-                        let data = change.document.data()
-                        if let notification = Notification(dictionary: data) {
-                            switch change.type {
-                            case .added:
-                                print("Notification added: \(notification.id)")
-                                if !self.notifications.contains(where: { $0.id == notification.id }) {
-                                    self.notifications.append(notification)
-                                }
-                            case .modified:
-                                print("Notification modified: \(notification.id)")
-                                if let index = self.notifications.firstIndex(where: { $0.id == notification.id }) {
-                                    self.notifications[index] = notification
-                                }
-                            case .removed:
-                                print("Notification removed: \(notification.id)")
-                                self.notifications.removeAll { $0.id == notification.id }
-                            default:
-                                break
+                        if change.type == .added {
+                            let data = change.document.data()
+                            if let notification = Notification(dictionary: data) {
+                                self.notifications.append(notification)
+                                self.triggerLocalNotification(notification: notification)
                             }
                         }
                     }
-
-                    print("Notifications updated: \(self.notifications.count) items")
                 }
             }
     }
-
+    private func triggerLocalNotification(notification: Notification) {
+        let content = UNMutableNotificationContent()
+        content.title = notification.title
+        content.body = notification.details
+        content.sound = .default
+        
+        let request = UNNotificationRequest(identifier: notification.id, content: content, trigger: nil)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling local notification: \(error.localizedDescription)")
+            } else {
+                print("Local notification triggered successfully.")
+            }
+        }
     }
-
+    
     
     // MARK: - Notifications View
     struct NotificationsView: View {
@@ -263,9 +331,9 @@ struct GuardianView: View {
                 print("Error: User not logged in.")
                 return
             }
-
+            
             print("Attempting to delete notification with ID: \(notification.id)")
-
+            
             let db = Firestore.firestore()
             db.collection("Notifications")
                 .document(user.uid)
@@ -283,9 +351,9 @@ struct GuardianView: View {
                     }
                 }
         }
-
-
-
+        
+        
+        
         
         /// Formats a date to a readable string.
         private func formattedDate(_ date: Date) -> String {
@@ -349,12 +417,13 @@ struct GuardianView: View {
         }
     }
     
-    // MARK: - Photos View
     struct PhotosView: View {
         @State private var photoURLs: [(url: URL, date: Date)] = []
         @State private var isLoading = true
-        @State private var selectedPhoto: URL? = nil
-        @State private var isZoomed: Bool = false
+        @State private var selectedPhoto: URL?
+        @State private var isZoomed = false
+        @State private var showDeleteAlert = false
+        @State private var photoToDelete: URL?
         
         var body: some View {
             ScrollView {
@@ -385,6 +454,21 @@ struct GuardianView: View {
                                         }
                                     }
                                     .frame(height: 150)
+                                    .overlay(
+                                        Button(action: {
+                                            photoToDelete = item.url
+                                            showDeleteAlert = true
+                                        }) {
+                                            Image(systemName: "trash")
+                                                .foregroundColor(.red)
+                                                .padding(8)
+                                                .background(Color.white)
+                                                .clipShape(Circle())
+                                                .shadow(radius: 2)
+                                        }
+                                            .padding(8),
+                                        alignment: .topTrailing
+                                    )
                                     Text("Date: \(formattedDate(item.date))")
                                         .font(.caption)
                                         .foregroundColor(.gray)
@@ -396,11 +480,46 @@ struct GuardianView: View {
                 }
             }
             .sheet(isPresented: $isZoomed) {
-                if let photoURL = selectedPhoto {
-                    ZoomView(content: Image(uiImage: UIImage(contentsOfFile: photoURL.path) ?? UIImage()), isPresented: $isZoomed)
+                if let photoURL = selectedPhoto,
+                   let data = try? Data(contentsOf: photoURL),
+                   let image = UIImage(data: data) {
+                    ZoomableImageView(image: image)
                 }
             }
+            .alert(isPresented: $showDeleteAlert) {
+                Alert(
+                    title: Text("Delete Photo"),
+                    message: Text("Are you sure you want to delete this photo?"),
+                    primaryButton: .destructive(Text("Delete")) {
+                        if let photoToDelete = photoToDelete {
+                            deletePhoto(photoToDelete)
+                        }
+                    },
+                    secondaryButton: .cancel()
+                )
+            }
             .onAppear(perform: fetchPhotos)
+        }
+        
+        private func deletePhoto(_ url: URL) {
+            guard let user = Auth.auth().currentUser else {
+                print("Error: User not logged in")
+                return
+            }
+            
+            let storageRef = Storage.storage().reference(forURL: url.absoluteString)
+            storageRef.delete { error in
+                if let error = error {
+                    print("Error deleting photo from storage: \(error.localizedDescription)")
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    photoURLs.removeAll { $0.url == url }
+                }
+                
+                print("Photo deleted successfully from storage.")
+            }
         }
         
         private func fetchPhotos() {
@@ -409,7 +528,7 @@ struct GuardianView: View {
                 isLoading = false
                 return
             }
-
+            
             let storageRef = Storage.storage().reference().child("media/\(user.uid)/photos")
             storageRef.listAll { result, error in
                 if let error = error {
@@ -437,7 +556,7 @@ struct GuardianView: View {
                 }
             }
         }
-
+        
         
         private func formattedDate(_ date: Date) -> String {
             let formatter = DateFormatter()
@@ -447,13 +566,55 @@ struct GuardianView: View {
         }
     }
     
+    struct ZoomableImageView: UIViewRepresentable {
+        let image: UIImage
+        
+        func makeUIView(context: Context) -> UIScrollView {
+            let scrollView = UIScrollView()
+            scrollView.minimumZoomScale = 1.0
+            scrollView.maximumZoomScale = 4.0
+            scrollView.delegate = context.coordinator
+            
+            let imageView = UIImageView(image: image)
+            imageView.contentMode = .scaleAspectFit
+            imageView.translatesAutoresizingMaskIntoConstraints = false
+            scrollView.addSubview(imageView)
+            
+            NSLayoutConstraint.activate([
+                imageView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+                imageView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+                imageView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+                imageView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+                imageView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+                imageView.heightAnchor.constraint(equalTo: scrollView.heightAnchor)
+            ])
+            
+            return scrollView
+        }
+        
+        func updateUIView(_ uiView: UIScrollView, context: Context) {}
+        
+        func makeCoordinator() -> Coordinator {
+            Coordinator()
+        }
+        
+        class Coordinator: NSObject, UIScrollViewDelegate {
+            func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+                return scrollView.subviews.first
+            }
+        }
+    }
+    
     // MARK: - Videos View
     struct VideosView: View {
         @State private var videoURLs: [(url: URL, date: Date)] = []
         @State private var isLoading = true
-        @State private var selectedVideo: URL? = nil
-        @State private var isZoomed: Bool = false
+        @State private var selectedVideo: URL?
+        @State private var isZoomed = false
+        @State private var showDeleteAlert = false
+        @State private var videoToDelete: URL?
         
+
         var body: some View {
             ScrollView {
                 VStack {
@@ -466,13 +627,29 @@ struct GuardianView: View {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
                             ForEach(videoURLs, id: \.url) { item in
                                 VStack {
-                                    VideoPlayerView(videoURL: item.url)
+                                    VideoPlayer(player: AVPlayer(url: item.url))
                                         .frame(height: 150)
+                                        .background(Color.black)
                                         .cornerRadius(10)
                                         .onTapGesture {
                                             selectedVideo = item.url
                                             isZoomed = true
                                         }
+                                        .overlay(
+                                            Button(action: {
+                                                videoToDelete = item.url
+                                                showDeleteAlert = true
+                                            }) {
+                                                Image(systemName: "trash")
+                                                    .foregroundColor(.red)
+                                                    .padding(8)
+                                                    .background(Color.white)
+                                                    .clipShape(Circle())
+                                                    .shadow(radius: 2)
+                                            }
+                                            .padding(8),
+                                            alignment: .topTrailing
+                                        )
                                     Text("Date: \(formattedDate(item.date))")
                                         .font(.caption)
                                         .foregroundColor(.gray)
@@ -485,8 +662,20 @@ struct GuardianView: View {
             }
             .sheet(isPresented: $isZoomed) {
                 if let videoURL = selectedVideo {
-                    ZoomView(content: VideoPlayer(player: AVPlayer(url: videoURL)), isPresented: $isZoomed)
+                    ZoomableVideoPlayerView(videoURL: videoURL)
                 }
+            }
+            .alert(isPresented: $showDeleteAlert) {
+                Alert(
+                    title: Text("Delete Video"),
+                    message: Text("Are you sure you want to delete this video?"),
+                    primaryButton: .destructive(Text("Delete")) {
+                        if let videoToDelete = videoToDelete {
+                            deleteVideo(videoToDelete)
+                        }
+                    },
+                    secondaryButton: .cancel()
+                )
             }
             .onAppear(perform: fetchVideos)
         }
@@ -497,7 +686,7 @@ struct GuardianView: View {
                 isLoading = false
                 return
             }
-
+            
             let storageRef = Storage.storage().reference().child("media/\(user.uid)/videos")
             storageRef.listAll { result, error in
                 if let error = error {
@@ -525,7 +714,28 @@ struct GuardianView: View {
                 }
             }
         }
-
+        
+        private func deleteVideo(_ url: URL) {
+            guard let user = Auth.auth().currentUser else {
+                print("Error: User not logged in")
+                return
+            }
+            
+            let storageRef = Storage.storage().reference(forURL: url.absoluteString)
+            storageRef.delete { error in
+                if let error = error {
+                    print("Error deleting video from storage: \(error.localizedDescription)")
+                    return
+                }
+                
+                DispatchQueue.main.async {
+                    videoURLs.removeAll { $0.url == url }
+                }
+                
+                print("Video deleted successfully from storage.")
+            }
+        }
+        
         private func formattedDate(_ date: Date) -> String {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
@@ -534,22 +744,64 @@ struct GuardianView: View {
         }
     }
     
-    struct ZoomView<Content: View>: View {
-        let content: Content
-        @Binding var isPresented: Bool
-        
-        var body: some View {
-            ZStack {
-                Color.black.edgesIgnoringSafeArea(.all)
-                content
-                    .frame(maxWidth: UIScreen.main.bounds.width, maxHeight: UIScreen.main.bounds.height)
-                    .background(Color.black)
-                    .onTapGesture {
-                        isPresented = false
-                    }
+    struct ZoomableVideoPlayerView: UIViewRepresentable {
+        let videoURL: URL
+
+        func makeUIView(context: Context) -> UIScrollView {
+            let scrollView = UIScrollView()
+            scrollView.minimumZoomScale = 1.0
+            scrollView.maximumZoomScale = 4.0
+            scrollView.delegate = context.coordinator
+
+            // Check for audio track
+            if let asset = AVAsset(url: videoURL) as? AVURLAsset,
+               asset.tracks(withMediaType: .audio).isEmpty {
+                print("Video has no audio track")
+            } else {
+                print("Video has an audio track")
+            }
+
+            let player = AVPlayer(url: videoURL)
+            let playerItem = AVPlayerItem(url: videoURL)
+            player.replaceCurrentItem(with: playerItem)
+
+            let playerLayer = AVPlayerLayer(player: player)
+            playerLayer.videoGravity = .resizeAspect
+
+            let containerView = UIView()
+            playerLayer.frame = containerView.bounds
+            containerView.layer.addSublayer(playerLayer)
+
+            scrollView.addSubview(containerView)
+
+            NSLayoutConstraint.activate([
+                containerView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+                containerView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+                containerView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+                containerView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+                containerView.widthAnchor.constraint(equalTo: scrollView.widthAnchor),
+                containerView.heightAnchor.constraint(equalTo: scrollView.heightAnchor)
+            ])
+
+            player.play() // Play video automatically
+
+            return scrollView
+        }
+
+        func updateUIView(_ uiView: UIScrollView, context: Context) {}
+
+        func makeCoordinator() -> Coordinator {
+            Coordinator()
+        }
+
+        class Coordinator: NSObject, UIScrollViewDelegate {
+            func viewForZooming(in scrollView: UIScrollView) -> UIView? {
+                return scrollView.subviews.first
             }
         }
     }
+
+
     
     struct VideoPlayerView: View {
         let videoURL: URL
@@ -560,139 +812,139 @@ struct GuardianView: View {
                 .cornerRadius(10)
         }
     }
-struct LocationAnnotation: Identifiable {
-    let id = UUID()
-    let coordinate: CLLocationCoordinate2D
-}
-
-
-struct VITrackingView: View {
-    @State private var region = MKCoordinateRegion(
-        center: CLLocationCoordinate2D(latitude: 0, longitude: 0),
-        span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
-    )
-    @State private var locationAnnotation: [LocationAnnotation] = []
-    @State private var locationAvailable = false
-    @State private var viName: String = "Location" // Default title
-    @State private var lastUpdated: String = "" // Store last update time
-    
-    var body: some View {
-        NavigationView {
-            VStack {
-                if locationAvailable {
-                    Map(coordinateRegion: $region, annotationItems: locationAnnotation) { annotation in
-                        MapPin(coordinate: annotation.coordinate, tint: .red)
-                    }
-                    .edgesIgnoringSafeArea(.all)
-                    
-                    if !lastUpdated.isEmpty {
-                        Text("Last updated: \(lastUpdated)")
-                            .font(.footnote)
-                            .foregroundColor(.gray)
-                            .padding(.top, 8)
-                    }
-                } else {
-                    Text("Waiting for location...")
-                        .foregroundColor(.gray)
-                }
-            }
-            .onAppear(perform: fetchLocation)
-            .navigationTitle(viName)
-        }
+    struct LocationAnnotation: Identifiable {
+        let id = UUID()
+        let coordinate: CLLocationCoordinate2D
     }
     
-    /// Fetches the location and user information
-    private func fetchLocation() {
-        guard let user = Auth.auth().currentUser else {
-            print("Error: User not logged in.")
-            return
+    
+    struct VITrackingView: View {
+        @State private var region = MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 0, longitude: 0),
+            span: MKCoordinateSpan(latitudeDelta: 0.05, longitudeDelta: 0.05)
+        )
+        @State private var locationAnnotation: [LocationAnnotation] = []
+        @State private var locationAvailable = false
+        @State private var viName: String = "Location" // Default title
+        @State private var lastUpdated: String = "" // Store last update time
+        
+        var body: some View {
+            NavigationView {
+                VStack {
+                    if locationAvailable {
+                        Map(coordinateRegion: $region, annotationItems: locationAnnotation) { annotation in
+                            MapPin(coordinate: annotation.coordinate, tint: .red)
+                        }
+                        .edgesIgnoringSafeArea(.all)
+                        
+                        if !lastUpdated.isEmpty {
+                            Text("Last updated: \(lastUpdated)")
+                                .font(.footnote)
+                                .foregroundColor(.gray)
+                                .padding(.top, 8)
+                        }
+                    } else {
+                        Text("Waiting for location...")
+                            .foregroundColor(.gray)
+                    }
+                }
+                .onAppear(perform: fetchLocation)
+                .navigationTitle(viName)
+            }
         }
         
-        let db = Firestore.firestore()
-        db.collection("Locations")
-            .document(user.uid)
-            .addSnapshotListener { documentSnapshot, error in
-                if let error = error {
-                    print("Error fetching location: \(error.localizedDescription)")
-                    return
-                }
-                
-                guard let data = documentSnapshot?.data() else {
-                    print("No data in location document.")
-                    return
-                }
-                
-                print("Location data fetched: \(data)")
-                
-                // Update location
-                if let latitude = data["latitude"] as? CLLocationDegrees,
-                   let longitude = data["longitude"] as? CLLocationDegrees {
-                    let newCoordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
-                    DispatchQueue.main.async {
-                        self.locationAnnotation = [LocationAnnotation(coordinate: newCoordinate)]
-                        self.region.center = newCoordinate
-                        self.locationAvailable = true
-                    }
-                }
-                
-                // Update last updated time
-                if let timestamp = data["timestamp"] as? Timestamp {
-                    let date = timestamp.dateValue()
-                    DispatchQueue.main.async {
-                        self.lastUpdated = formatDate(date)
-                    }
-                }
-                
-                // Update VI name directly if available
-                if let firstName = data["firstName"] as? String,
-                   let lastName = data["lastName"] as? String {
-                    DispatchQueue.main.async {
-                        self.viName = "\(firstName) \(lastName)'s Location"
-                    }
-                } else if let visuallyImpairedEmail = data["viEmail"] as? String {
-                    // Fallback to fetch name using email
-                    fetchVIName(email: visuallyImpairedEmail)
-                }
+        /// Fetches the location and user information
+        private func fetchLocation() {
+            guard let user = Auth.auth().currentUser else {
+                print("Error: User not logged in.")
+                return
             }
+            
+            let db = Firestore.firestore()
+            db.collection("Locations")
+                .document(user.uid)
+                .addSnapshotListener { documentSnapshot, error in
+                    if let error = error {
+                        print("Error fetching location: \(error.localizedDescription)")
+                        return
+                    }
+                    
+                    guard let data = documentSnapshot?.data() else {
+                        print("No data in location document.")
+                        return
+                    }
+                    
+                    print("Location data fetched: \(data)")
+                    
+                    // Update location
+                    if let latitude = data["latitude"] as? CLLocationDegrees,
+                       let longitude = data["longitude"] as? CLLocationDegrees {
+                        let newCoordinate = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                        DispatchQueue.main.async {
+                            self.locationAnnotation = [LocationAnnotation(coordinate: newCoordinate)]
+                            self.region.center = newCoordinate
+                            self.locationAvailable = true
+                        }
+                    }
+                    
+                    // Update last updated time
+                    if let timestamp = data["timestamp"] as? Timestamp {
+                        let date = timestamp.dateValue()
+                        DispatchQueue.main.async {
+                            self.lastUpdated = formatDate(date)
+                        }
+                    }
+                    
+                    // Update VI name directly if available
+                    if let firstName = data["firstName"] as? String,
+                       let lastName = data["lastName"] as? String {
+                        DispatchQueue.main.async {
+                            self.viName = "\(firstName) \(lastName)'s Location"
+                        }
+                    } else if let visuallyImpairedEmail = data["viEmail"] as? String {
+                        // Fallback to fetch name using email
+                        fetchVIName(email: visuallyImpairedEmail)
+                    }
+                }
+        }
+        
+        /// Fallback function to fetch VI name using email
+        private func fetchVIName(email: String) {
+            let db = Firestore.firestore()
+            db.collection("Visually_Impaired")
+                .whereField("email", isEqualTo: email)
+                .getDocuments { snapshot, error in
+                    if let error = error {
+                        print("Error fetching VI name: \(error.localizedDescription)")
+                        return
+                    }
+                    
+                    guard let document = snapshot?.documents.first else {
+                        print("No document found for email: \(email)")
+                        return
+                    }
+                    
+                    let data = document.data()
+                    if let firstName = data["firstName"] as? String,
+                       let lastName = data["lastName"] as? String {
+                        DispatchQueue.main.async {
+                            self.viName = "\(firstName) \(lastName)'s Location"
+                            print("Fetched name: \(self.viName)")
+                        }
+                    }
+                }
+        }
+        
+        /// Formats a date to a readable string
+        private func formatDate(_ date: Date) -> String {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        }
     }
     
-    /// Fallback function to fetch VI name using email
-    private func fetchVIName(email: String) {
-        let db = Firestore.firestore()
-        db.collection("Visually_Impaired")
-            .whereField("email", isEqualTo: email)
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    print("Error fetching VI name: \(error.localizedDescription)")
-                    return
-                }
-                
-                guard let document = snapshot?.documents.first else {
-                    print("No document found for email: \(email)")
-                    return
-                }
-                
-                let data = document.data()
-                if let firstName = data["firstName"] as? String,
-                   let lastName = data["lastName"] as? String {
-                    DispatchQueue.main.async {
-                        self.viName = "\(firstName) \(lastName)'s Location"
-                        print("Fetched name: \(self.viName)")
-                    }
-                }
-            }
-    }
     
-    /// Formats a date to a readable string
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-}
-
-
     struct SettingsView1: View {
         var body: some View {
             Text("Settings Content")
@@ -704,37 +956,38 @@ struct VITrackingView: View {
             Text("Guide on Adding a Visually Impaired User")
         }
     }
-
-// MARK: - Notification Model
-struct Notification: Identifiable {
-    let id: String
-    let title: String
-    let details: String
-    let date: Date
-
-    init(id: String = UUID().uuidString, title: String, details: String, date: Date) {
-        self.id = id
-        self.title = title
-        self.details = details
-        self.date = date
-    }
-
-    init?(dictionary: [String: Any]) {
-        guard let id = dictionary["id"] as? String,
-              let title = dictionary["title"] as? String,
-              let details = dictionary["details"] as? String,
-              let timestamp = dictionary["date"] as? Timestamp else {
-            return nil
+}
+    // MARK: - Notification Model
+    struct Notification: Identifiable {
+        let id: String
+        let title: String
+        let details: String
+        let date: Date
+        
+        init(id: String = UUID().uuidString, title: String, details: String, date: Date) {
+            self.id = id
+            self.title = title
+            self.details = details
+            self.date = date
         }
         
-        self.id = id
-        self.title = title
-        self.details = details
-        self.date = timestamp.dateValue()
+        init?(dictionary: [String: Any]) {
+            guard let id = dictionary["id"] as? String,
+                  let title = dictionary["title"] as? String,
+                  let details = dictionary["details"] as? String,
+                  let timestamp = dictionary["date"] as? Timestamp else {
+                return nil
+            }
+            
+            self.id = id
+            self.title = title
+            self.details = details
+            self.date = timestamp.dateValue()
+        }
     }
-}
-struct GuardianView_Previews: PreviewProvider {
-    static var previews: some View {
-        GuardianView()
+    struct GuardianView_Previews: PreviewProvider {
+        static var previews: some View {
+            GuardianView()
+        }
     }
-}
+

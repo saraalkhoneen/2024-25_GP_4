@@ -236,6 +236,9 @@ struct SettingsView: View {
     }
     private func performSignOut() {
         do {
+            // Stop notification listeners
+            GuardianView.stopNotificationListener() // Make stopNotificationListener static or accessible
+            
             // Step 1: Firebase sign-out
             try Auth.auth().signOut()
             
@@ -256,6 +259,7 @@ struct SettingsView: View {
             showAlert = true
         }
     }
+
 
                  }
 
