@@ -367,32 +367,58 @@ struct GuardianView: View {
     
     // MARK: - Media View
     struct MediaView: View {
+        @State private var selectedTab: String = "Photos" // Default selection
+        
         var body: some View {
             NavigationView {
-                VStack(spacing: 20) {
+                VStack {
+                    // Title and Description
                     Text("Media")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                        .padding(.top, 40)
-                        .padding(.bottom , 10)
+                        .padding(.top, 20)
                     
-                    Spacer()
+                 
                     
-                    NavigationLink(destination: PhotosView()) {
-                        MediaTabView(icon: "photo", title: "Photos", color: Color(hexString: "1A3E48"))
-                            .padding(.horizontal, 40) // Add padding for a wider look
+                    // Segmented Control for Photos and Videos
+                    HStack(spacing: 0) {
+                        Button(action: { selectedTab = "Photos" }) {
+                            Text("Photos")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(selectedTab == "Photos" ? Color(hexString: "3c6e71") : Color.gray.opacity(0.2))
+                                .foregroundColor(selectedTab == "Photos" ? .white : .black)
+                                .cornerRadius(10, corners: [.topLeft, .bottomLeft])
+                        }
+                        
+                        Button(action: { selectedTab = "Videos" }) {
+                            Text("Videos")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(selectedTab == "Videos" ? Color(hexString: "3c6e71") : Color.gray.opacity(0.2))
+                                .foregroundColor(selectedTab == "Videos" ? .white : .black)
+                                .cornerRadius(10, corners: [.topRight, .bottomRight])
+                        }
                     }
+                    .padding(.horizontal)
+                    .padding(.top, 20)
                     
-                    NavigationLink(destination: VideosView()) {
-                        MediaTabView(icon: "video", title: "Videos", color: Color(hexString: "1A3E48"))
-                            .padding(.horizontal, 40) // Add padding for a wider look
+                    Spacer().frame(height: 40)
+                    
+                    // Display PhotosView or VideosView based on selected tab
+                    if selectedTab == "Photos" {
+                        PhotosView()
+                    } else {
+                        VideosView()
                     }
                     
                     Spacer()
                 }
+                .background(Color.white.edgesIgnoringSafeArea(.all))
             }
         }
     }
+
     
     struct MediaTabView: View {
         let icon: String
@@ -545,7 +571,8 @@ struct GuardianView: View {
                         item.downloadURL { url, _ in
                             if let url = url, let metadata = metadata, let timeCreated = metadata.timeCreated {
                                 DispatchQueue.main.async {
-                                    photoURLs.append((url: url, date: timeCreated))
+                                    self.photoURLs.append((url: url, date: timeCreated))
+                                    self.photoURLs.sort { $0.date > $1.date } // Sort latest on top
                                 }
                             }
                         }
@@ -556,6 +583,7 @@ struct GuardianView: View {
                 }
             }
         }
+
         
         
         private func formattedDate(_ date: Date) -> String {
@@ -703,7 +731,8 @@ struct GuardianView: View {
                         item.downloadURL { url, _ in
                             if let url = url, let metadata = metadata, let timeCreated = metadata.timeCreated {
                                 DispatchQueue.main.async {
-                                    videoURLs.append((url: url, date: timeCreated))
+                                    self.videoURLs.append((url: url, date: timeCreated))
+                                    self.videoURLs.sort { $0.date > $1.date } // Sort latest on top
                                 }
                             }
                         }
@@ -714,6 +743,7 @@ struct GuardianView: View {
                 }
             }
         }
+
         
         private func deleteVideo(_ url: URL) {
             guard let user = Auth.auth().currentUser else {
