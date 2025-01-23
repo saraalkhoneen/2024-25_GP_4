@@ -55,7 +55,7 @@ struct GuardianView: View {
             Color.white.edgesIgnoringSafeArea(.all)
             
             TabView(selection: $selectedTab) {
-                NotificationsView(notifications: $notifications)
+                NotificationsView(notifications: $notifications, selectedTab: $selectedTab)
                     .tabItem {
                         Image(systemName: "bell.fill")
                         Text("Notifications")
@@ -65,7 +65,7 @@ struct GuardianView: View {
                 MediaView()
                     .tabItem {
                         Image(systemName: "photo.fill")
-                        Text("Media")
+                        Text("Help Requests")
                     }
                     .tag(1)
                 
@@ -149,20 +149,30 @@ struct GuardianView: View {
             }
         }
         .onAppear {
-            fetchGuardianData()
-            setupNotificationListener()
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
-                if let error = error {
-                    print("Error requesting notification permissions: \(error.localizedDescription)")
-                } else if granted {
-                    print("Notification permissions granted.")
-                } else {
-                    print("Notification permissions denied.")
-                }
-            }
-            UNUserNotificationCenter.current().delegate = NotificationDelegate()
-        }
-    }
+                   fetchGuardianData()
+                   setupNotificationListener()
+                   
+                   // Request notification permissions
+                   UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+                       if let error = error {
+                           print("Error requesting notification permissions: \(error.localizedDescription)")
+                       } else if granted {
+                           print("Notification permissions granted.")
+                       } else {
+                           print("Notification permissions denied.")
+                       }
+                   }
+                   
+                   // Set the notification delegate and handle notification taps
+                   let delegate = NotificationDelegate()
+                   delegate.onNotificationTap = {
+                       DispatchQueue.main.async {
+                           self.selectedTab = 0 // Switch to the Notifications tab
+                       }
+                   }
+                   UNUserNotificationCenter.current().delegate = delegate
+               }
+           }
     
     /// Fetches the guardian's data (name, unique code) from Firestore.
     private func fetchGuardianData() {
@@ -265,13 +275,50 @@ struct GuardianView: View {
             }
         }
     }
-    
-    
-    // MARK: - Notifications View
+    class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+        var onNotificationTap: (() -> Void)? // Callback to handle tab switching
+        
+        func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+            guard let currentUser = Auth.auth().currentUser else {
+                completionHandler([])
+                return
+            }
+
+            // Fetch user role to ensure correct targeting
+            let db = Firestore.firestore()
+            db.collection("Guardian").document(currentUser.uid).getDocument { document, error in
+                if let error = error {
+                    print("Error fetching user role: \(error.localizedDescription)")
+                    completionHandler([])
+                    return
+                }
+
+                if document?.exists == true {
+                    // Show notification only for guardians
+                    completionHandler([.banner, .sound])
+                } else {
+                    // Do not show the notification
+                    completionHandler([])
+                }
+            }
+        }
+        
+        func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+            print("Notification tapped")
+            // Call the callback to handle tab switching
+            onNotificationTap?()
+            completionHandler()
+        }
+    }
+
+    // MARK: - Notification View
     struct NotificationsView: View {
         @Binding var notifications: [Notification]
-        @State private var showConfirmationDialog = false
-        @State private var selectedNotification: Notification?
+        @Binding var selectedTab: Int // Pass the selectedTab binding to switch tabs
+        @State private var isEditing: Bool = false // Toggles selection mode
+        @State private var selectedNotifications: Set<String> = []
+        @State private var isSelectAll: Bool = false
+        
         var body: some View {
             NavigationView {
                 VStack {
@@ -292,70 +339,130 @@ struct GuardianView: View {
                                 .padding(.horizontal, 40)
                         }
                     } else {
-                        List {
-                            ForEach(notifications) { notification in
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Text(notification.title)
-                                        .font(.headline)
-                                    Text(notification.details)
-                                        .font(.subheadline)
-                                        .foregroundColor(.gray)
-                                    Text("Date: \(formattedDate(notification.date))")
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
+                        VStack {
+                            // Display "Select All" toggle only in editing mode
+                            if isEditing {
+                                Toggle("Select All", isOn: $isSelectAll)
+                                    .padding(.horizontal)
+                                    .onChange(of: isSelectAll) { newValue in
+                                        if newValue {
+                                            selectedNotifications = Set(notifications.map { $0.id })
+                                        } else {
+                                            selectedNotifications.removeAll()
+                                        }
+                                    }
+                            }
+                            
+                            List {
+                                ForEach(notifications) { notification in
+                                    HStack {
+                                        // Checkbox appears only in editing mode
+                                        if isEditing {
+                                            Image(systemName: selectedNotifications.contains(notification.id) ? "checkmark.square.fill" : "square")
+                                                .onTapGesture {
+                                                    toggleSelection(for: notification.id)
+                                                }
+                                        }
+                                        
+                                        VStack(alignment: .leading, spacing: 5) {
+                                            Text(notification.title)
+                                                .font(.headline)
+                                                .onTapGesture {
+                                                    handleNotificationTap(notification: notification)
+                                                }
+                                            Text(notification.details)
+                                                .font(.subheadline)
+                                                .foregroundColor(.gray)
+                                                .onTapGesture {
+                                                    handleNotificationTap(notification: notification)
+                                                }
+                                            Text("Date: \(formattedDate(notification.date))")
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        }
+                                    }
                                 }
-                                .padding(.vertical, 5)
-                                .onTapGesture {
-                                    selectedNotification = notification
-                                    showConfirmationDialog = true
+                            }
+                            
+                            // Clear Selected Button (only appears in editing mode)
+                            if isEditing {
+                                Button(action: deleteSelectedNotifications) {
+                                    Text("Clear Selected")
+                                        .foregroundColor(.white)
+                                        .padding()
+                                        .background(selectedNotifications.isEmpty ? Color.gray : Color.red)
+                                        .cornerRadius(8)
+                                        .disabled(selectedNotifications.isEmpty)
                                 }
+                                .padding()
                             }
                         }
                     }
                 }
                 .navigationTitle("Notifications")
-                .confirmationDialog("Are you sure you want to delete this notification?", isPresented: $showConfirmationDialog, titleVisibility: .visible) {
-                    Button("Delete", role: .destructive) {
-                        if let notification = selectedNotification {
-                            deleteNotification(notification: notification)
-                        }
+                .navigationBarItems(trailing: Button(isEditing ? "Done" : "Select") {
+                    isEditing.toggle()
+                    if !isEditing {
+                        // Reset selection when exiting editing mode
+                        selectedNotifications.removeAll()
+                        isSelectAll = false
                     }
-                    Button("Cancel", role: .cancel) {}
-                }
+                })
             }
         }
-        /// Deletes the notification from Firestore and removes it from the UI.
-        /// - Parameter notification: The notification to delete.
-        private func deleteNotification(notification: Notification) {
+        
+        /// Handles the tap on a notification
+        private func handleNotificationTap(notification: Notification) {
+            print("Notification tapped: \(notification.title)")
+            // Redirect to the Media tab
+            selectedTab = 1 // Set to the Media tab index
+        }
+        
+        /// Toggles the selection state of a notification
+        private func toggleSelection(for id: String) {
+            if selectedNotifications.contains(id) {
+                selectedNotifications.remove(id)
+            } else {
+                selectedNotifications.insert(id)
+            }
+            isSelectAll = selectedNotifications.count == notifications.count
+        }
+        
+        /// Deletes the selected notifications
+        private func deleteSelectedNotifications() {
             guard let user = Auth.auth().currentUser else {
                 print("Error: User not logged in.")
                 return
             }
             
-            print("Attempting to delete notification with ID: \(notification.id)")
-            
             let db = Firestore.firestore()
-            db.collection("Notifications")
-                .document(user.uid)
-                .collection("UserNotifications")
-                .document(notification.id)
-                .delete { error in
-                    if let error = error {
-                        print("Error deleting notification from Firestore: \(error.localizedDescription)")
-                    } else {
-                        print("Notification successfully deleted from Firestore.")
-                        DispatchQueue.main.async {
-                            self.notifications.removeAll { $0.id == notification.id }
-                            print("Notifications updated locally. Remaining count: \(self.notifications.count)")
+            let group = DispatchGroup()
+            
+            for notificationId in selectedNotifications {
+                group.enter()
+                db.collection("Notifications")
+                    .document(user.uid)
+                    .collection("UserNotifications")
+                    .document(notificationId)
+                    .delete { error in
+                        if let error = error {
+                            print("Error deleting notification \(notificationId): \(error.localizedDescription)")
+                        } else {
+                            DispatchQueue.main.async {
+                                notifications.removeAll { $0.id == notificationId }
+                            }
                         }
+                        group.leave()
                     }
-                }
+            }
+            
+            group.notify(queue: .main) {
+                selectedNotifications.removeAll()
+                isSelectAll = false
+            }
         }
         
-        
-        
-        
-        /// Formats a date to a readable string.
+        /// Formats a date to a readable string
         private func formattedDate(_ date: Date) -> String {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
@@ -363,8 +470,8 @@ struct GuardianView: View {
             return formatter.string(from: date)
         }
     }
-    
-    
+
+
     // MARK: - Media View
     struct MediaView: View {
         @State private var selectedTab: String = "Photos" // Default selection
