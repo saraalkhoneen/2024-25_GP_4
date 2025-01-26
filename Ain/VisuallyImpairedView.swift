@@ -402,10 +402,13 @@ class CameraManager: NSObject, ObservableObject {
     private var capturedPhotoData: Data? // Store photo data
     private var isVideoSaved = false // Track video save completion
     private var lastRecognizedText: String = ""
-    private let textRecognitionInterval: TimeInterval = 1.0 // 1 second delay between announcements
     @Published var isTextRecognitionRunning = false
     private var isProcessingTextFrame = false
- 
+    private let textRecognitionInterval: TimeInterval = 2.0 // 2 seconds
+    private var textRecognitionTask: DispatchWorkItem? // To manage recognition cancellation
+
+
+
     override init() {
         super.init()
         configureCoreMLModel()
@@ -462,14 +465,22 @@ class CameraManager: NSObject, ObservableObject {
         announceDetectionStop()
     }
     func startTextRecognitionStream() {
-        isTextRecognitionRunning = true
-        announceMessage("Text recognition started.")
-    }
-    
-    func stopTextRecognitionStream() {
-        isTextRecognitionRunning = false
-        announceMessage("Text recognition stopped.")
-    }
+           isTextRecognitionRunning = true
+           announceMessage("Text recognition started.")
+       }
+
+       func stopTextRecognitionStream() {
+           isTextRecognitionRunning = false
+           textRecognitionTask?.cancel() // Cancel ongoing recognition task
+           stopSpeech() // Stop any ongoing speech synthesis
+           announceMessage("Text recognition stopped.")
+       }
+
+       private func stopSpeech() {
+           if speechSynthesizer.isSpeaking {
+               speechSynthesizer.stopSpeaking(at: .immediate)
+           }
+       }
     
     private func resizeImageBuffer(_ imageBuffer: CVImageBuffer, width: Int, height: Int) -> CVImageBuffer {
         let ciImage = CIImage(cvPixelBuffer: imageBuffer) // Convert image buffer to CIImage
@@ -540,75 +551,70 @@ class CameraManager: NSObject, ObservableObject {
     }
 
     private func processTextFrame(imageBuffer: CVImageBuffer) {
-        guard !isProcessingTextFrame else { return }
-        isProcessingTextFrame = true
+          guard isTextRecognitionRunning, !isProcessingTextFrame else { return }
 
-        let now = Date()
-        if now.timeIntervalSince(lastFrameTime) < textRecognitionInterval {
-            isProcessingTextFrame = false
-            return
-        }
-        lastFrameTime = now
+          isProcessingTextFrame = true
 
-        guard let preprocessedBuffer = preprocessImageBuffer(imageBuffer, width: 640, height: 480) else {
-            isProcessingTextFrame = false
-            return
-        }
+          // Create a cancelable recognition task
+          textRecognitionTask = DispatchWorkItem { [weak self] in
+              guard let self = self, self.isTextRecognitionRunning else { return }
 
-        let request = VNRecognizeTextRequest { [weak self] request, error in
-            guard let self = self else { return }
-            defer { self.isProcessingTextFrame = false }
+              let request = VNRecognizeTextRequest { request, error in
+                  guard error == nil,
+                        let results = request.results as? [VNRecognizedTextObservation],
+                        self.isTextRecognitionRunning else {
+                      self.isProcessingTextFrame = false
+                      return
+                  }
 
-            guard let results = request.results as? [VNRecognizedTextObservation], error == nil else {
-                print("Error recognizing text: \(error?.localizedDescription ?? "Unknown error")")
-                return
-            }
+                  let recognizedText = results.compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
 
-            let recognizedText = results.compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
-            self.handleRecognizedText(recognizedText)
-        }
+                  DispatchQueue.main.async {
+                      self.handleRecognizedText(recognizedText)
+                  }
+              }
 
-        request.recognitionLevel = .fast
-        request.usesLanguageCorrection = false
+              let handler = VNImageRequestHandler(cvPixelBuffer: imageBuffer, options: [:])
+              do {
+                  try handler.perform([request])
+              } catch {
+                  print("Error performing text recognition: \(error.localizedDescription)")
+              }
 
-        let handler = VNImageRequestHandler(cvPixelBuffer: preprocessedBuffer, options: [:])
-        do {
-            try handler.perform([request])
-        } catch {
-            print("Failed to perform text recognition: \(error.localizedDescription)")
-            isProcessingTextFrame = false
-        }
-    }
+              self.isProcessingTextFrame = false
+          }
 
+          // Execute the task on a background queue
+          if let task = textRecognitionTask {
+              DispatchQueue.global().async(execute: task)
+          }
+      }
 
-    private func handleRecognizedText(_ text: String) {
-        guard !text.isEmpty else { return }
+      private func handleRecognizedText(_ text: String) {
+          guard !text.isEmpty else { return }
 
-        // Filter out invalid text using regex (e.g., remove random symbols)
-        let validTextPattern = "^[a-zA-Z0-9.,'\"\\s]+$" // Adjust as needed
-        let regex = try? NSRegularExpression(pattern: validTextPattern)
-        if regex?.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) == nil {
-            print("Filtered out invalid text: \(text)")
-            return
-        }
+          let now = Date()
 
-        let now = Date()
-        if (text != lastRecognizedText && text != "") || now.timeIntervalSince(lastAnnouncementTime) > textRecognitionInterval {
-            lastRecognizedText = text
-            lastAnnouncementTime = now
-            announceMessage(text)
-        }
-    }
+          // Announce the text if enough time has passed since the last announcement
+          if now.timeIntervalSince(lastAnnouncementTime) > textRecognitionInterval {
+              if text != lastRecognizedText {
+                  lastRecognizedText = text
+                  lastAnnouncementTime = now
+                  announceMessage(text)
+              }
+          }
+      }
 
-    
-    func announceMessage(_ message: String) {
-        let utterance = AVSpeechUtterance(string: message)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-UK")
-        DispatchQueue.main.async {
-            self.speechSynthesizer.speak(utterance)
-        }
-    }
-    
+      func announceMessage(_ message: String) {
+          guard isTextRecognitionRunning else { return } // Skip if recognition is stopped
+
+          let utterance = AVSpeechUtterance(string: message)
+          utterance.voice = AVSpeechSynthesisVoice(language: "en-UK")
+          DispatchQueue.main.async {
+              self.speechSynthesizer.speak(utterance)
+          }
+      }
+  
     func announceHelpRequestSuccess() {
         let successMessage = "Your photo and video have been uploaded successfully."
         announceMessage(successMessage)
