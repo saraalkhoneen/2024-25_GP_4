@@ -212,10 +212,11 @@ struct CameraTabView: View {
                                 .cornerRadius(10)
                         }
                     }
-                                      Button(action: {
-                                          cameraManager.capturePhotoAndVideo { success in
-                                              showUploadMessage = true
-                                              cameraManager.announceHelpRequestSuccess()
+                    Button(action: {
+                        cameraManager.capturePhotoAndVideo { success in
+                            showUploadMessage = true
+                            cameraManager.announceHelpRequestSuccess()
+                            sendHelpRequest() // Send help request notification
                                           }
                                           cameraManager.announceMessage("Help is requested.")
                                       }) {
@@ -245,128 +246,117 @@ struct CameraTabView: View {
     }
 
     /// Sends a help request to the guardian by creating a notification in Firestore.
-    func sendHelpRequest() {
-        let db = Firestore.firestore()
+    /// Sends a help request notification
+       func sendHelpRequest() {
+           let db = Firestore.firestore()
 
-        guard let currentUserEmail = Auth.auth().currentUser?.email else {
-            print("Error: User email not found")
-            return
-        }
+           guard let currentUserEmail = Auth.auth().currentUser?.email else {
+               print("Error: User email not found")
+               return
+           }
 
-        fetchUserDetails(forEmail: currentUserEmail) { userDetails in
-            guard let userDetails = userDetails else {
-                print("Error: User details not found")
-                return
-            }
+           fetchUserDetails(forEmail: currentUserEmail) { userDetails in
+               guard let userDetails = userDetails else {
+                   print("Error: User details not found")
+                   return
+               }
 
-            // Construct the full name
-            let fullName = "\(userDetails["firstName"] ?? "Unknown") \(userDetails["lastName"] ?? "User")"
+               let fullName = "\(userDetails["firstName"] ?? "Unknown") \(userDetails["lastName"] ?? "User")"
 
-            // Fetch the guardian's UID using the visually impaired user's email
-            fetchGuardianUID(forEmail: currentUserEmail) { guardianUID in
-                guard let guardianUID = guardianUID else {
-                    print("Error: Guardian UID not found")
-                    return
-                }
+               fetchGuardianUID(forEmail: currentUserEmail) { guardianUID in
+                   guard let guardianUID = guardianUID else {
+                       print("Error: Guardian UID not found")
+                       return
+                   }
 
-                // Create a notification document
-                let notificationId = UUID().uuidString
-                let notification = [
-                    "id": notificationId,
-                    "title": "Help Request",
-                    "details": "\(fullName) has requested help. Check the media tab for photos and videos.",
-                    "date": Timestamp(date: Date())
-                ] as [String: Any]
+                   let notificationId = UUID().uuidString
+                   let notification = [
+                       "id": notificationId,
+                       "title": "Help Request",
+                       "details": "\(fullName) has requested help. Check the media tab for photos and videos.",
+                       "date": Timestamp(date: Date())
+                   ] as [String: Any]
 
-                // Save the notification in Firestore
-                db.collection("Notifications")
-                    .document(guardianUID)
-                    .collection("UserNotifications")
-                    .document(notificationId)
-                    .setData(notification) { error in
-                        if let error = error {
-                            print("Error sending notification: \(error.localizedDescription)")
-                        } else {
-                            print("Notification sent successfully with ID: \(notificationId)")
+                   db.collection("Notifications")
+                       .document(guardianUID)
+                       .collection("UserNotifications")
+                       .document(notificationId)
+                       .setData(notification) { error in
+                           if let error = error {
+                               print("Error sending notification: \(error.localizedDescription)")
+                           } else {
+                               print("Notification sent successfully with ID: \(notificationId)")
 
-                            // Trigger a local notification
-                            self.triggerLocalNotification(title: "Help Request", body: "\(fullName) has requested help.")
-                        }
-                    }
-            }
-        }
-    }
+                               // Trigger local notification
+                               self.triggerLocalNotification(title: "Help Request", body: "\(fullName) has requested help.")
+                           }
+                       }
+               }
+           }
+       }
 
+       /// Triggers a local notification
+       func triggerLocalNotification(title: String, body: String) {
+           let content = UNMutableNotificationContent()
+           content.title = title
+           content.body = body
+           content.sound = .default
 
-    /// Triggers a local notification.
-    func triggerLocalNotification(title: String, body: String) {
-        let content = UNMutableNotificationContent()
-        content.title = title
-        content.body = body
-        content.sound = .default
+           let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
 
-        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+           UNUserNotificationCenter.current().add(request) { error in
+               if let error = error {
+                   print("Error scheduling local notification: \(error.localizedDescription)")
+               } else {
+                   print("Local notification triggered successfully.")
+               }
+           }
+       }
 
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error scheduling local notification: \(error.localizedDescription)")
-            } else {
-                print("Local notification triggered successfully.")
-            }
-        }
-    }
+       /// Fetch user details based on email
+       func fetchUserDetails(forEmail email: String, completion: @escaping ([String: String]?) -> Void) {
+           let db = Firestore.firestore()
 
+           db.collection("Visually_Impaired")
+               .whereField("email", isEqualTo: email)
+               .getDocuments { snapshot, error in
+                   if let error = error {
+                       print("Error fetching user details: \(error.localizedDescription)")
+                       completion(nil)
+                       return
+                   }
 
-    /// Fetches the user's details (first name, last name) based on their email.
-    /// - Parameters:
-    ///   - email: The email of the user.
-    ///   - completion: A completion handler that returns the user's details as a dictionary.
-    func fetchUserDetails(forEmail email: String, completion: @escaping ([String: String]?) -> Void) {
-        let db = Firestore.firestore()
+                   if let document = snapshot?.documents.first, let data = document.data() as? [String: String] {
+                       completion(data)
+                   } else {
+                       print("No user found with the email: \(email)")
+                       completion(nil)
+                   }
+               }
+       }
 
-        db.collection("Visually_Impaired")
-            .whereField("email", isEqualTo: email)
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    print("Error fetching user details: \(error.localizedDescription)")
-                    completion(nil)
-                    return
-                }
+       /// Fetch guardian UID based on the VI email
+       func fetchGuardianUID(forEmail email: String, completion: @escaping (String?) -> Void) {
+           let db = Firestore.firestore()
 
-                if let document = snapshot?.documents.first, let data = document.data() as? [String: String] {
-                    completion(data)
-                } else {
-                    print("No user found with the email: \(email)")
-                    completion(nil)
-                }
-            }
-    }
-    /// Fetches the guardian UID associated with the visually impaired user's email.
-    /// - Parameters:
-    ///   - email: The visually impaired user's email.
-    ///   - completion: A completion handler that returns the guardian's UID.
-    func fetchGuardianUID(forEmail email: String, completion: @escaping (String?) -> Void) {
-        let db = Firestore.firestore()
+           db.collection("Guardian")
+               .whereField("visuallyImpairedEmail", isEqualTo: email)
+               .getDocuments { snapshot, error in
+                   if let error = error {
+                       print("Error fetching Guardian UID: \(error.localizedDescription)")
+                       completion(nil)
+                       return
+                   }
 
-        db.collection("Guardian")
-            .whereField("visuallyImpairedEmail", isEqualTo: email)
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    print("Error fetching Guardian UID: \(error.localizedDescription)")
-                    completion(nil)
-                    return
-                }
-
-                if let document = snapshot?.documents.first {
-                    print("Guardian UID found: \(document.documentID)")
-                    completion(document.documentID)
-                } else {
-                    print("No guardian found for email: \(email)")
-                    completion(nil)
-                }
-            }
-    }
-}
+                   if let document = snapshot?.documents.first {
+                       completion(document.documentID)
+                   } else {
+                       print("No guardian found for email: \(email)")
+                       completion(nil)
+                   }
+               }
+       }
+   }
 
 struct CircularProgressBar: View {
     var progress: Double
@@ -415,8 +405,7 @@ class CameraManager: NSObject, ObservableObject {
     private let textRecognitionInterval: TimeInterval = 1.0 // 1 second delay between announcements
     @Published var isTextRecognitionRunning = false
     private var isProcessingTextFrame = false
-    
-    
+ 
     override init() {
         super.init()
         configureCoreMLModel()
@@ -511,6 +500,39 @@ class CameraManager: NSObject, ObservableObject {
             print("Failed to create resized CVPixelBuffer.")
             return imageBuffer // Fallback to the original buffer
         }
+        // Render the resized image into the new CVPixelBuffer
+        context.render(resizedImage, to: outputBuffer)
+        return outputBuffer
+    }
+    private func preprocessImageBuffer(_ imageBuffer: CVImageBuffer, width: Int, height: Int) -> CVPixelBuffer? {
+        let ciImage = CIImage(cvPixelBuffer: imageBuffer)
+        let resizeTransform = CGAffineTransform(scaleX: CGFloat(width) / ciImage.extent.width,
+                                                y: CGFloat(height) / ciImage.extent.height)
+        let resizedImage = ciImage.transformed(by: resizeTransform)
+
+        let context = CIContext()
+        var resizedBuffer: CVPixelBuffer?
+
+        // Create a CVPixelBuffer with the target size
+        let attributes: [String: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+            kCVPixelBufferWidthKey as String: width,
+            kCVPixelBufferHeightKey as String: height,
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+        ]
+
+        let status = CVPixelBufferCreate(kCFAllocatorDefault,
+                                         width,
+                                         height,
+                                         kCVPixelFormatType_32BGRA,
+                                         attributes as CFDictionary,
+                                         &resizedBuffer)
+
+        guard status == kCVReturnSuccess, let outputBuffer = resizedBuffer else {
+            print("Failed to create resized CVPixelBuffer.")
+            return nil
+        }
 
         // Render the resized image into the new CVPixelBuffer
         context.render(resizedImage, to: outputBuffer)
@@ -521,8 +543,17 @@ class CameraManager: NSObject, ObservableObject {
         guard !isProcessingTextFrame else { return }
         isProcessingTextFrame = true
 
-        // Downscale the image buffer to improve performance
-        let resizedBuffer = resizeImageBuffer(imageBuffer, width: 640, height: 480)
+        let now = Date()
+        if now.timeIntervalSince(lastFrameTime) < textRecognitionInterval {
+            isProcessingTextFrame = false
+            return
+        }
+        lastFrameTime = now
+
+        guard let preprocessedBuffer = preprocessImageBuffer(imageBuffer, width: 640, height: 480) else {
+            isProcessingTextFrame = false
+            return
+        }
 
         let request = VNRecognizeTextRequest { [weak self] request, error in
             guard let self = self else { return }
@@ -540,7 +571,7 @@ class CameraManager: NSObject, ObservableObject {
         request.recognitionLevel = .fast
         request.usesLanguageCorrection = false
 
-        let handler = VNImageRequestHandler(cvPixelBuffer: resizedBuffer, options: [:])
+        let handler = VNImageRequestHandler(cvPixelBuffer: preprocessedBuffer, options: [:])
         do {
             try handler.perform([request])
         } catch {
@@ -550,17 +581,25 @@ class CameraManager: NSObject, ObservableObject {
     }
 
 
-     private func handleRecognizedText(_ text: String) {
-         guard !text.isEmpty else { return }
+    private func handleRecognizedText(_ text: String) {
+        guard !text.isEmpty else { return }
 
-         let now = Date()
-         // Only announce if the text is different or if sufficient time has passed
-         if (text != lastRecognizedText && text != "") || now.timeIntervalSince(lastAnnouncementTime) > textRecognitionInterval {
-             lastRecognizedText = text
-             lastAnnouncementTime = now
-             announceMessage(text)
-         }
-     }
+        // Filter out invalid text using regex (e.g., remove random symbols)
+        let validTextPattern = "^[a-zA-Z0-9.,'\"\\s]+$" // Adjust as needed
+        let regex = try? NSRegularExpression(pattern: validTextPattern)
+        if regex?.firstMatch(in: text, options: [], range: NSRange(location: 0, length: text.count)) == nil {
+            print("Filtered out invalid text: \(text)")
+            return
+        }
+
+        let now = Date()
+        if (text != lastRecognizedText && text != "") || now.timeIntervalSince(lastAnnouncementTime) > textRecognitionInterval {
+            lastRecognizedText = text
+            lastAnnouncementTime = now
+            announceMessage(text)
+        }
+    }
+
     
     func announceMessage(_ message: String) {
         let utterance = AVSpeechUtterance(string: message)

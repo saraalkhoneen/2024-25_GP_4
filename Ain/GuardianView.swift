@@ -240,41 +240,53 @@ struct GuardianView: View {
                     print("Error fetching notifications: \(error.localizedDescription)")
                     return
                 }
-                
+
                 guard let snapshot = snapshot else {
                     print("Error: Snapshot is nil.")
                     return
                 }
-                
+
                 DispatchQueue.main.async {
-                    for change in snapshot.documentChanges {
-                        if change.type == .added {
+                    snapshot.documentChanges.forEach { change in
+                        switch change.type {
+                        case .added:
                             let data = change.document.data()
-                            if let notification = Notification(dictionary: data) {
-                                self.notifications.append(notification)
+                            if let notification = Notification(dictionary: data),
+                               !self.notifications.contains(where: { $0.id == notification.id }) {
+                                self.notifications.insert(notification, at: 0) // Insert at the beginning
                                 self.triggerLocalNotification(notification: notification)
                             }
+                        case .modified:
+                            let data = change.document.data()
+                            if let updatedNotification = Notification(dictionary: data),
+                               let index = self.notifications.firstIndex(where: { $0.id == updatedNotification.id }) {
+                                self.notifications[index] = updatedNotification
+                            }
+                        case .removed:
+                            let removedId = change.document.documentID
+                            self.notifications.removeAll { $0.id == removedId }
                         }
                     }
                 }
             }
     }
+
     private func triggerLocalNotification(notification: Notification) {
         let content = UNMutableNotificationContent()
         content.title = notification.title
         content.body = notification.details
         content.sound = .default
-        
+
         let request = UNNotificationRequest(identifier: notification.id, content: content, trigger: nil)
-        
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
                 print("Error scheduling local notification: \(error.localizedDescription)")
             } else {
-                print("Local notification triggered successfully.")
+                print("Local notification triggered successfully for \(notification.id).")
             }
         }
     }
+
     class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         var onNotificationTap: (() -> Void)? // Callback to handle tab switching
         
