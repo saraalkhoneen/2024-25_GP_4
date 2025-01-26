@@ -481,37 +481,74 @@ class CameraManager: NSObject, ObservableObject {
         isTextRecognitionRunning = false
         announceMessage("Text recognition stopped.")
     }
+    
+    private func resizeImageBuffer(_ imageBuffer: CVImageBuffer, width: Int, height: Int) -> CVImageBuffer {
+        let ciImage = CIImage(cvPixelBuffer: imageBuffer) // Convert image buffer to CIImage
+        let resizeTransform = CGAffineTransform(scaleX: CGFloat(width) / ciImage.extent.width,
+                                                y: CGFloat(height) / ciImage.extent.height)
+        let resizedImage = ciImage.transformed(by: resizeTransform)
+
+        let context = CIContext() // Core Image context for rendering
+        var resizedBuffer: CVPixelBuffer?
+
+        // Create a CVPixelBuffer with the target size
+        let attributes: [String: Any] = [
+            kCVPixelBufferCGImageCompatibilityKey as String: true,
+            kCVPixelBufferCGBitmapContextCompatibilityKey as String: true,
+            kCVPixelBufferWidthKey as String: width,
+            kCVPixelBufferHeightKey as String: height,
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+        ]
+
+        let status = CVPixelBufferCreate(kCFAllocatorDefault,
+                                         width,
+                                         height,
+                                         kCVPixelFormatType_32BGRA,
+                                         attributes as CFDictionary,
+                                         &resizedBuffer)
+
+        guard status == kCVReturnSuccess, let outputBuffer = resizedBuffer else {
+            print("Failed to create resized CVPixelBuffer.")
+            return imageBuffer // Fallback to the original buffer
+        }
+
+        // Render the resized image into the new CVPixelBuffer
+        context.render(resizedImage, to: outputBuffer)
+        return outputBuffer
+    }
+
     private func processTextFrame(imageBuffer: CVImageBuffer) {
-         guard !isProcessingTextFrame else { return }
-         isProcessingTextFrame = true
+        guard !isProcessingTextFrame else { return }
+        isProcessingTextFrame = true
 
-         let request = VNRecognizeTextRequest { [weak self] request, error in
-             guard let self = self else { return }
-             defer { self.isProcessingTextFrame = false } // Ensure the flag is reset
+        // Downscale the image buffer to improve performance
+        let resizedBuffer = resizeImageBuffer(imageBuffer, width: 640, height: 480)
 
-             guard let results = request.results as? [VNRecognizedTextObservation], error == nil else {
-                 print("Error recognizing text: \(error?.localizedDescription ?? "Unknown error")")
-                 return
-             }
+        let request = VNRecognizeTextRequest { [weak self] request, error in
+            guard let self = self else { return }
+            defer { self.isProcessingTextFrame = false }
 
-             // Combine all recognized text
-             let recognizedText = results.compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+            guard let results = request.results as? [VNRecognizedTextObservation], error == nil else {
+                print("Error recognizing text: \(error?.localizedDescription ?? "Unknown error")")
+                return
+            }
 
-             // Handle the recognized text
-             self.handleRecognizedText(recognizedText)
-         }
+            let recognizedText = results.compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+            self.handleRecognizedText(recognizedText)
+        }
 
-         request.recognitionLevel = .accurate
-         request.usesLanguageCorrection = true
+        request.recognitionLevel = .fast
+        request.usesLanguageCorrection = false
 
-         let handler = VNImageRequestHandler(cvPixelBuffer: imageBuffer, options: [:])
-         do {
-             try handler.perform([request])
-         } catch {
-             print("Failed to perform text recognition: \(error.localizedDescription)")
-             isProcessingTextFrame = false
-         }
-     }
+        let handler = VNImageRequestHandler(cvPixelBuffer: resizedBuffer, options: [:])
+        do {
+            try handler.perform([request])
+        } catch {
+            print("Failed to perform text recognition: \(error.localizedDescription)")
+            isProcessingTextFrame = false
+        }
+    }
+
 
      private func handleRecognizedText(_ text: String) {
          guard !text.isEmpty else { return }
