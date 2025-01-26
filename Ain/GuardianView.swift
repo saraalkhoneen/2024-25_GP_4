@@ -365,36 +365,31 @@ struct GuardianView: View {
                                     }
                             }
                             
-                            List {
-                                ForEach(notifications) { notification in
-                                    HStack {
-                                        // Checkbox appears only in editing mode
-                                        if isEditing {
-                                            Image(systemName: selectedNotifications.contains(notification.id) ? "checkmark.square.fill" : "square")
-                                                .onTapGesture {
-                                                    toggleSelection(for: notification.id)
-                                                }
-                                        }
-                                        
-                                        VStack(alignment: .leading, spacing: 5) {
-                                            Text(notification.title)
-                                                .font(.headline)
-                                                .onTapGesture {
-                                                    handleNotificationTap(notification: notification)
-                                                }
-                                            Text(notification.details)
-                                                .font(.subheadline)
-                                                .foregroundColor(.gray)
-                                                .onTapGesture {
-                                                    handleNotificationTap(notification: notification)
-                                                }
-                                            Text("Date: \(formattedDate(notification.date))")
-                                                .font(.caption)
-                                                .foregroundColor(.gray)
-                                        }
-                                    }
-                                }
-                            }
+                            
+                                                   // List Notifications (sorted by last arrival)
+                                                   List {
+                                                       ForEach(notifications.sorted(by: { $0.date > $1.date })) { notification in
+                                                           HStack {
+                                                               if isEditing {
+                                                                   Image(systemName: selectedNotifications.contains(notification.id) ? "checkmark.square.fill" : "square")
+                                                                       .onTapGesture {
+                                                                           toggleSelection(for: notification.id)
+                                                                       }
+                                                               }
+                                                               
+                                                               VStack(alignment: .leading, spacing: 5) {
+                                                                   Text(notification.title)
+                                                                       .font(.headline)
+                                                                   Text(notification.details)
+                                                                       .font(.subheadline)
+                                                                       .foregroundColor(.gray)
+                                                                   Text("Date: \(formattedDate(notification.date))")
+                                                                       .font(.caption)
+                                                                       .foregroundColor(.gray)
+                                                               }
+                                                           }
+                                                       }
+                                                   }
                             
                             // Clear Selected Button (only appears in editing mode)
                             if isEditing {
@@ -490,15 +485,12 @@ struct GuardianView: View {
         
         var body: some View {
             NavigationView {
-                VStack {
+                VStack(spacing: 5) {
                     // Title and Description
-                    Text("Media")
+                    Text("Help Requests")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                        .padding(.top, 20)
-                    
-                 
-                    
+                        .padding(.top, 10)
                     // Segmented Control for Photos and Videos
                     HStack(spacing: 0) {
                         Button(action: { selectedTab = "Photos" }) {
@@ -509,28 +501,19 @@ struct GuardianView: View {
                                 .foregroundColor(selectedTab == "Photos" ? .white : .black)
                                 .cornerRadius(10, corners: [.topLeft, .bottomLeft])
                         }
-                        
-                        Button(action: { selectedTab = "Videos" }) {
+                       Button(action: { selectedTab = "Videos" }) {
                             Text("Videos")
                                 .frame(maxWidth: .infinity)
                                 .padding()
                                 .background(selectedTab == "Videos" ? Color(hexString: "3c6e71") : Color.gray.opacity(0.2))
                                 .foregroundColor(selectedTab == "Videos" ? .white : .black)
-                                .cornerRadius(10, corners: [.topRight, .bottomRight])
-                        }
-                    }
+                                .cornerRadius(10, corners: [.topRight, .bottomRight]) }}
                     .padding(.horizontal)
-                    .padding(.top, 20)
-                    
-                    Spacer().frame(height: 40)
-                    
+                    Spacer().frame(height: 5) // Reduced gap
                     // Display PhotosView or VideosView based on selected tab
                     if selectedTab == "Photos" {
-                        PhotosView()
-                    } else {
-                        VideosView()
-                    }
-                    
+                        PhotosView() } else {
+                        VideosView() }
                     Spacer()
                 }
                 .background(Color.white.edgesIgnoringSafeArea(.all))
@@ -570,50 +553,59 @@ struct GuardianView: View {
         @State private var showDeleteAlert = false
         @State private var photoToDelete: URL?
         
+        @State private var isEditing: Bool = false
+        @State private var selectedPhotos: Set<URL> = []
+        @State private var selectAllPhotos: Bool = false
+
+  
         var body: some View {
-            ScrollView {
-                VStack {
-                    if isLoading {
-                        ProgressView("Loading photos...")
-                    } else if photoURLs.isEmpty {
-                        Text("No photos available")
-                            .foregroundColor(.gray)
-                    } else {
+            VStack {
+                if isLoading {
+                    ProgressView("Loading photos...")
+                } else if photoURLs.isEmpty {
+                    Text("No photos available")
+                        .foregroundColor(.gray)
+                } else {
+                    if isEditing {
+                        Toggle("Select All", isOn: $selectAllPhotos)
+                            .padding(.horizontal)
+                            .onChange(of: selectAllPhotos) { newValue in
+                                if newValue {
+                                    selectedPhotos = Set(photoURLs.map { $0.url })
+                                } else {
+                                    selectedPhotos.removeAll()
+                                }
+                            }
+                    }
+                    ScrollView {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
                             ForEach(photoURLs, id: \.url) { item in
                                 VStack {
-                                    AsyncImage(url: item.url) { phase in
-                                        if let image = phase.image {
-                                            image
-                                                .resizable()
-                                                .scaledToFit()
-                                                .cornerRadius(10)
-                                                .onTapGesture {
-                                                    selectedPhoto = item.url
-                                                    isZoomed = true
-                                                }
-                                        } else if phase.error != nil {
-                                            Text("Error loading image")
-                                        } else {
-                                            ProgressView()
+                                    ZStack(alignment: .topTrailing) {
+                                        AsyncImage(url: item.url) { phase in
+                                            if let image = phase.image {
+                                                image
+                                                    .resizable()
+                                                    .scaledToFit()
+                                                    .cornerRadius(10)
+                                            } else if phase.error != nil {
+                                                Text("Error loading image")
+                                            } else {
+                                                ProgressView()
+                                            }
+                                        }
+                                        .frame(height: 150)
+
+                                        if isEditing {
+                                            Button(action: {
+                                                toggleSelection(for: item.url)
+                                            }) {
+                                                Image(systemName: selectedPhotos.contains(item.url) ? "checkmark.circle.fill" : "circle")
+                                                    .foregroundColor(selectedPhotos.contains(item.url) ? .blue : .gray)
+                                            }
+                                            .padding(10)
                                         }
                                     }
-                                    .frame(height: 150)
-                                    .overlay(
-                                        Button(action: {
-                                            photoToDelete = item.url
-                                            showDeleteAlert = true
-                                        }) {
-                                            Image(systemName: "trash")
-                                                .foregroundColor(.red)
-                                                .padding(8)
-                                                .background(Color.white)
-                                                .clipShape(Circle())
-                                                .shadow(radius: 2)
-                                        }
-                                            .padding(8),
-                                        alignment: .topTrailing
-                                    )
                                     Text("Date: \(formattedDate(item.date))")
                                         .font(.caption)
                                         .foregroundColor(.gray)
@@ -622,51 +614,57 @@ struct GuardianView: View {
                         }
                         .padding()
                     }
-                }
-            }
-            .sheet(isPresented: $isZoomed) {
-                if let photoURL = selectedPhoto,
-                   let data = try? Data(contentsOf: photoURL),
-                   let image = UIImage(data: data) {
-                    ZoomableImageView(image: image)
-                }
-            }
-            .alert(isPresented: $showDeleteAlert) {
-                Alert(
-                    title: Text("Delete Photo"),
-                    message: Text("Are you sure you want to delete this photo?"),
-                    primaryButton: .destructive(Text("Delete")) {
-                        if let photoToDelete = photoToDelete {
-                            deletePhoto(photoToDelete)
+                    if isEditing && !selectedPhotos.isEmpty {
+                        Button(action: deleteSelectedPhotos) {
+                            Text("Delete Selected")
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.red)
+                                .cornerRadius(10)
                         }
-                    },
-                    secondaryButton: .cancel()
-                )
+                        .padding()
+                    }
+                }
             }
+            .navigationBarItems(trailing: Button(isEditing ? "Done" : "Select") {
+                isEditing.toggle()
+                if !isEditing {
+                    selectedPhotos.removeAll()
+                    selectAllPhotos = false
+                }
+            })
             .onAppear(perform: fetchPhotos)
         }
-        
-        private func deletePhoto(_ url: URL) {
-            guard let user = Auth.auth().currentUser else {
-                print("Error: User not logged in")
-                return
+
+        private func toggleSelection(for url: URL) {
+            if selectedPhotos.contains(url) {
+                selectedPhotos.remove(url)
+            } else {
+                selectedPhotos.insert(url)
             }
-            
-            let storageRef = Storage.storage().reference(forURL: url.absoluteString)
-            storageRef.delete { error in
-                if let error = error {
-                    print("Error deleting photo from storage: \(error.localizedDescription)")
-                    return
+            selectAllPhotos = selectedPhotos.count == photoURLs.count
+        }
+
+        private func deleteSelectedPhotos() {
+            guard let user = Auth.auth().currentUser else { return }
+
+            let group = DispatchGroup()
+            for photoURL in selectedPhotos {
+                group.enter()
+                let storageRef = Storage.storage().reference(forURL: photoURL.absoluteString)
+                storageRef.delete { error in
+                    if error == nil {
+                        photoURLs.removeAll { $0.url == photoURL }
+                    }
+                    group.leave()
                 }
-                
-                DispatchQueue.main.async {
-                    photoURLs.removeAll { $0.url == url }
-                }
-                
-                print("Photo deleted successfully from storage.")
+            }
+
+            group.notify(queue: .main) {
+                selectedPhotos.removeAll()
+                selectAllPhotos = false
             }
         }
-        
         private func fetchPhotos() {
             guard let user = Auth.auth().currentUser else {
                 print("Error: User not logged in")
@@ -760,43 +758,50 @@ struct GuardianView: View {
         @State private var isZoomed = false
         @State private var showDeleteAlert = false
         @State private var videoToDelete: URL?
-        
+  
+           @State private var isEditing: Bool = false
+           @State private var selectedVideos: Set<URL> = []
+           @State private var selectAllVideos: Bool = false
 
         var body: some View {
-            ScrollView {
-                VStack {
-                    if isLoading {
-                        ProgressView("Loading videos...")
-                    } else if videoURLs.isEmpty {
-                        Text("No videos available")
-                            .foregroundColor(.gray)
-                    } else {
+            VStack {
+                if isLoading {
+                    ProgressView("Loading videos...")
+                } else if videoURLs.isEmpty {
+                    Text("No videos available")
+                        .foregroundColor(.gray)
+                } else {
+                    if isEditing {
+                        Toggle("Select All", isOn: $selectAllVideos)
+                            .padding(.horizontal)
+                            .onChange(of: selectAllVideos) { newValue in
+                                if newValue {
+                                    selectedVideos = Set(videoURLs.map { $0.url })
+                                } else {
+                                    selectedVideos.removeAll()
+                                }
+                            }
+                    }
+                    ScrollView {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
                             ForEach(videoURLs, id: \.url) { item in
                                 VStack {
-                                    VideoPlayer(player: AVPlayer(url: item.url))
-                                        .frame(height: 150)
-                                        .background(Color.black)
-                                        .cornerRadius(10)
-                                        .onTapGesture {
-                                            selectedVideo = item.url
-                                            isZoomed = true
-                                        }
-                                        .overlay(
+                                    ZStack(alignment: .topTrailing) {
+                                        VideoPlayer(player: AVPlayer(url: item.url))
+                                            .frame(height: 150)
+                                            .background(Color.black)
+                                            .cornerRadius(10)
+
+                                        if isEditing {
                                             Button(action: {
-                                                videoToDelete = item.url
-                                                showDeleteAlert = true
+                                                toggleSelection(for: item.url)
                                             }) {
-                                                Image(systemName: "trash")
-                                                    .foregroundColor(.red)
-                                                    .padding(8)
-                                                    .background(Color.white)
-                                                    .clipShape(Circle())
-                                                    .shadow(radius: 2)
+                                                Image(systemName: selectedVideos.contains(item.url) ? "checkmark.circle.fill" : "circle")
+                                                    .foregroundColor(selectedVideos.contains(item.url) ? .blue : .gray)
                                             }
-                                            .padding(8),
-                                            alignment: .topTrailing
-                                        )
+                                            .padding(10)
+                                        }
+                                    }
                                     Text("Date: \(formattedDate(item.date))")
                                         .font(.caption)
                                         .foregroundColor(.gray)
@@ -805,28 +810,57 @@ struct GuardianView: View {
                         }
                         .padding()
                     }
-                }
-            }
-            .sheet(isPresented: $isZoomed) {
-                if let videoURL = selectedVideo {
-                    ZoomableVideoPlayerView(videoURL: videoURL)
-                }
-            }
-            .alert(isPresented: $showDeleteAlert) {
-                Alert(
-                    title: Text("Delete Video"),
-                    message: Text("Are you sure you want to delete this video?"),
-                    primaryButton: .destructive(Text("Delete")) {
-                        if let videoToDelete = videoToDelete {
-                            deleteVideo(videoToDelete)
+                    if isEditing && !selectedVideos.isEmpty {
+                        Button(action: deleteSelectedVideos) {
+                            Text("Delete Selected")
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.red)
+                                .cornerRadius(10)
                         }
-                    },
-                    secondaryButton: .cancel()
-                )
+                        .padding()
+                    }
+                }
             }
+            .navigationBarItems(trailing: Button(isEditing ? "Done" : "Select") {
+                isEditing.toggle()
+                if !isEditing {
+                    selectedVideos.removeAll()
+                    selectAllVideos = false
+                }
+            })
             .onAppear(perform: fetchVideos)
         }
-        
+
+        private func toggleSelection(for url: URL) {
+            if selectedVideos.contains(url) {
+                selectedVideos.remove(url)
+            } else {
+                selectedVideos.insert(url)
+            }
+            selectAllVideos = selectedVideos.count == videoURLs.count
+        }
+
+        private func deleteSelectedVideos() {
+            guard let user = Auth.auth().currentUser else { return }
+
+            let group = DispatchGroup()
+            for videoURL in selectedVideos {
+                group.enter()
+                let storageRef = Storage.storage().reference(forURL: videoURL.absoluteString)
+                storageRef.delete { error in
+                    if error == nil {
+                        videoURLs.removeAll { $0.url == videoURL }
+                    }
+                    group.leave()
+                }
+            }
+
+            group.notify(queue: .main) {
+                selectedVideos.removeAll()
+                selectAllVideos = false
+            }
+        }
         private func fetchVideos() {
             guard let user = Auth.auth().currentUser else {
                 print("Error: User not logged in")
