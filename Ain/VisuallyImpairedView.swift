@@ -195,22 +195,39 @@ struct CameraTabView: View {
                             .cornerRadius(10)
                     }
 
-                    Button(action: {
-                        cameraManager.capturePhotoAndVideo { success in
-                            showUploadMessage = true
+                    HStack(spacing: 20) {
+                        Button(action: {
+                            if cameraManager.isTextRecognitionRunning {
+                                cameraManager.stopTextRecognitionStream()
+                            } else {
+                                cameraManager.startTextRecognitionStream()
+                            }
+                        }) {
+                            Text(cameraManager.isTextRecognitionRunning ? "Stop Text Recognition" : "Start Text Recognition")
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .padding()
+                                .background(cameraManager.isTextRecognitionRunning ? Color.gray : Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(10)
                         }
-                        cameraManager.announceHelpRequest() // Announce that help is requested
-                        sendHelpRequest() // Send help request notification
-                    }) {
-                        Text("Help Request")
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .padding()
-                            .background(Color.purple)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
                     }
-                }
+                                      Button(action: {
+                                          cameraManager.capturePhotoAndVideo { success in
+                                              showUploadMessage = true
+                                              cameraManager.announceHelpRequestSuccess()
+                                          }
+                                          cameraManager.announceMessage("Help is requested.")
+                                      }) {
+                                          Text("Help Request")
+                                              .frame(maxWidth: .infinity)
+                                              .frame(height: 50)
+                                              .padding()
+                                              .background(Color.purple)
+                                              .foregroundColor(.white)
+                                              .cornerRadius(10)
+                                      }
+                                  }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 50)
             }
@@ -386,31 +403,36 @@ class CameraManager: NSObject, ObservableObject {
     private var lastAnnouncementTime = Date() // Track the time of the last announcement
     private let framesPerSecond = 5 // Adjusted for smoother detection
     private let allowedClasses = ["Desk", "Light Switch", "Hand", "Earbud", "Door", "Board", "Airpods Case", "Oumy", "Juju", "Laptop", "Projector", "Trash Can", "Outlet", "Cellphone", "Chair", "Fire Extinguisher", "Glasses", "Podium", "Keyboard", "Pencil", "Exit sign", "Poster", "Water Bottle"]
-
+    
     @Published var isDetectionRunning = false
     @Published var uploadProgress: Double = 0 // Track upload progress
-
+    
     private let photoOutput = AVCapturePhotoOutput() // Added for photo capture
     private let videoFileOutput = AVCaptureMovieFileOutput() // Added for video recording
     private var capturedPhotoData: Data? // Store photo data
     private var isVideoSaved = false // Track video save completion
-
+    private var lastRecognizedText: String = ""
+    private let textRecognitionInterval: TimeInterval = 1.0 // 1 second delay between announcements
+    @Published var isTextRecognitionRunning = false
+    private var isProcessingTextFrame = false
+    
+    
     override init() {
         super.init()
         configureCoreMLModel()
     }
-
+    
     func configure() {
         session.beginConfiguration()
         session.sessionPreset = .high
-
+        
         guard let backCamera = AVCaptureDevice.default(for: .video),
               let input = try? AVCaptureDeviceInput(device: backCamera) else {
             print("Error: Unable to access the back camera!")
             session.commitConfiguration()
             return
         }
-
+        
         if session.canAddInput(input) {
             session.addInput(input)
         } else {
@@ -418,7 +440,7 @@ class CameraManager: NSObject, ObservableObject {
             session.commitConfiguration()
             return
         }
-
+        
         videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
         if session.canAddOutput(videoOutput) {
             session.addOutput(videoOutput)
@@ -427,29 +449,95 @@ class CameraManager: NSObject, ObservableObject {
             session.commitConfiguration()
             return
         }
-
+        
         if session.canAddOutput(photoOutput) {
             session.addOutput(photoOutput) // Add photo output
         }
-
+        
         if session.canAddOutput(videoFileOutput) {
             session.addOutput(videoFileOutput) // Add video file output
         }
-
+        
         session.commitConfiguration()
         session.startRunning() // Camera feed always runs
     }
-
+    
     func startLiveStream() {
         isDetectionRunning = true
         announceDetectionStart()
         scheduleNothingAnnouncement()
     }
-
+    
     func stopLiveStream() {
         isDetectionRunning = false
         announceDetectionStop()
     }
+    func startTextRecognitionStream() {
+        isTextRecognitionRunning = true
+        announceMessage("Text recognition started.")
+    }
+    
+    func stopTextRecognitionStream() {
+        isTextRecognitionRunning = false
+        announceMessage("Text recognition stopped.")
+    }
+    private func processTextFrame(imageBuffer: CVImageBuffer) {
+         guard !isProcessingTextFrame else { return }
+         isProcessingTextFrame = true
+
+         let request = VNRecognizeTextRequest { [weak self] request, error in
+             guard let self = self else { return }
+             defer { self.isProcessingTextFrame = false } // Ensure the flag is reset
+
+             guard let results = request.results as? [VNRecognizedTextObservation], error == nil else {
+                 print("Error recognizing text: \(error?.localizedDescription ?? "Unknown error")")
+                 return
+             }
+
+             // Combine all recognized text
+             let recognizedText = results.compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+
+             // Handle the recognized text
+             self.handleRecognizedText(recognizedText)
+         }
+
+         request.recognitionLevel = .accurate
+         request.usesLanguageCorrection = true
+
+         let handler = VNImageRequestHandler(cvPixelBuffer: imageBuffer, options: [:])
+         do {
+             try handler.perform([request])
+         } catch {
+             print("Failed to perform text recognition: \(error.localizedDescription)")
+             isProcessingTextFrame = false
+         }
+     }
+
+     private func handleRecognizedText(_ text: String) {
+         guard !text.isEmpty else { return }
+
+         let now = Date()
+         // Only announce if the text is different or if sufficient time has passed
+         if (text != lastRecognizedText && text != "") || now.timeIntervalSince(lastAnnouncementTime) > textRecognitionInterval {
+             lastRecognizedText = text
+             lastAnnouncementTime = now
+             announceMessage(text)
+         }
+     }
+    
+    func announceMessage(_ message: String) {
+        let utterance = AVSpeechUtterance(string: message)
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-UK")
+        DispatchQueue.main.async {
+            self.speechSynthesizer.speak(utterance)
+        }
+    }
+    
+    func announceHelpRequestSuccess() {
+        let successMessage = "Your photo and video have been uploaded successfully."
+        announceMessage(successMessage)
+    }
+
 
     private func configureCoreMLModel() {
         do {
@@ -465,7 +553,7 @@ class CameraManager: NSObject, ObservableObject {
         guard let model = model, isDetectionRunning else { return }
 
         let now = Date()
-        if now.timeIntervalSince(lastFrameTime) < 1.0 / Double(framesPerSecond) { return }
+        if now.timeIntervalSince(lastFrameTime) < 1.5 / Double(framesPerSecond) { return }
         lastFrameTime = now
 
         let request = VNCoreMLRequest(model: model) { [weak self] request, error in
@@ -676,9 +764,19 @@ extension CameraManager: AVCaptureFileOutputRecordingDelegate {
 extension CameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         guard let imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        processFrame(imageBuffer: imageBuffer)
+
+        // Process frames for object detection
+        if isDetectionRunning {
+            processFrame(imageBuffer: imageBuffer)
+        }
+
+        // Process frames for text recognition
+        if isTextRecognitionRunning {
+            processTextFrame(imageBuffer: imageBuffer)
+        }
     }
 }
+
 
 // Camera Preview
 struct CameraPreviewView: UIViewRepresentable {
