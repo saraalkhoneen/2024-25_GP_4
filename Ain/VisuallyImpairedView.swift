@@ -9,6 +9,8 @@ import FirebaseAuth
 import CoreLocation
 import UserNotifications
 
+import Speech
+import CoreMotion
 
 struct VisuallyImpairedView: View {
     @StateObject private var locationManager = LocationManager()
@@ -163,7 +165,8 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 // SwiftUI View to display the Camera feed
 struct CameraTabView: View {
     @StateObject private var cameraManager = CameraManager()
-    @State private var showUploadMessage: Bool = false
+    @StateObject private var motionManager = MotionManager() // Add MotionManager instance
+    @State private var isListening = false // Track listening state
 
     var body: some View {
         ZStack {
@@ -177,73 +180,144 @@ struct CameraTabView: View {
                         .frame(width: 80, height: 80)
                         .padding(.bottom, 20)
                 }
-
-                HStack(spacing: 20) {
-                    Button(action: {
-                        if cameraManager.isDetectionRunning {
-                            cameraManager.stopLiveStream()
-                        } else {
-                            cameraManager.startLiveStream()
-                        }
-                    }) {
-                        Text(cameraManager.isDetectionRunning ? "Stop Detection" : "Start Detection")
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .padding()
-                            .background(cameraManager.isDetectionRunning ? Color.gray : Color.green)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                    }
-
-                    HStack(spacing: 20) {
-                        Button(action: {
-                            if cameraManager.isTextRecognitionRunning {
-                                cameraManager.stopTextRecognitionStream()
-                            } else {
-                                cameraManager.startTextRecognitionStream()
-                            }
-                        }) {
-                            Text(cameraManager.isTextRecognitionRunning ? "Stop Text Recognition" : "Start Text Recognition")
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
-                                .padding()
-                                .background(cameraManager.isTextRecognitionRunning ? Color.gray : Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(10)
-                        }
-                    }
-                    Button(action: {
-                        cameraManager.capturePhotoAndVideo { success in
-                            showUploadMessage = true
-                            cameraManager.announceHelpRequestSuccess()
-                            sendHelpRequest() // Send help request notification
-                                          }
-                                          cameraManager.announceMessage("Help is requested.")
-                                      }) {
-                                          Text("Help Request")
-                                              .frame(maxWidth: .infinity)
-                                              .frame(height: 50)
-                                              .padding()
-                                              .background(Color.purple)
-                                              .foregroundColor(.white)
-                                              .cornerRadius(10)
-                                      }
-                                  }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 50)
-            }
-            .alert(isPresented: $showUploadMessage) {
-                Alert(
-                    title: Text("Upload Complete"),
-                    message: Text("Your photo and video have been uploaded successfully."),
-                    dismissButton: .default(Text("OK"))
-                )
             }
         }
         .onAppear {
-            cameraManager.configure()
+            cameraManager.configure() // Initialize the camera manager
+            motionManager.startMonitoring() // Start motion monitoring for shake detection
+            print("MotionManager started.") // Debugging: Confirm MotionManager is initialized
+        }
+
+        .onChange(of: motionManager.isShaking) { isShaking in
+            if isShaking {
+                print("Shake detected!") // Confirm shake detection works
+                triggerVoiceCommand() // Call voice command function
+            } else {
+                print("Shake reset, no command triggered.") // Confirm reset
+            }
+        }
+
+
+    }
+
+    private func triggerVoiceCommand() {
+        guard !isListening else {
+            print("Already listening, ignoring this shake.") // Debugging
+            return
+        }
+
+        // Request speech authorization before proceeding
+        SFSpeechRecognizer.requestAuthorization { authStatus in
+            DispatchQueue.main.async {
+                switch authStatus {
+                case .authorized:
+                    print("Speech recognition authorized.")
+                    self.startSpeechRecognition() // Start recognition after authorization
+                case .denied:
+                    print("Speech recognition authorization denied.")
+                case .restricted:
+                    print("Speech recognition restricted on this device.")
+                case .notDetermined:
+                    print("Speech recognition not determined.")
+                @unknown default:
+                    print("Unknown speech recognition authorization status.")
+                }
+            }
         }
     }
+
+
+    private func startSpeechRecognition() {
+        isListening = true
+        print("Listening for voice commands...") // Debugging
+
+        let audioEngine = AVAudioEngine()
+        let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+        let request = SFSpeechAudioBufferRecognitionRequest()
+
+        guard let recognizer = speechRecognizer, recognizer.isAvailable else {
+            print("Speech recognizer is not available.") // Debugging
+            isListening = false
+            return
+        }
+
+        let inputNode = audioEngine.inputNode
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
+            request.append(buffer)
+        }
+
+        audioEngine.prepare()
+
+        do {
+            try audioEngine.start()
+            print("Audio Engine started.") // Debugging
+        } catch {
+            print("Audio Engine couldn't start: \(error.localizedDescription)") // Debugging
+            isListening = false
+            return
+        }
+
+        recognizer.recognitionTask(with: request) { result, error in
+            if let result = result {
+                let command = result.bestTranscription.formattedString.lowercased()
+                print("Command heard: \(command)") // Debugging
+                self.handleVoiceCommand(command) // Handle the recognized command
+            } else if let error = error {
+                print("Speech recognition error: \(error.localizedDescription)") // Debugging
+            }
+
+            // Stop audio engine after recognition is complete
+            self.isListening = false
+            audioEngine.stop()
+            inputNode.removeTap(onBus: 0)
+        }
+
+        // Add a timeout of 10 seconds to stop recognition
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+            if self.isListening {
+                print("Speech recognition timeout.")
+                self.isListening = false
+                audioEngine.stop()
+                inputNode.removeTap(onBus: 0)
+            }
+        }
+    }
+
+
+
+    private func handleVoiceCommand(_ command: String) {
+        print("Handling command: \(command)") // Debugging
+
+        switch command {
+        case "start":
+            cameraManager.startLiveStream()
+            print("Started detection") // Debugging
+
+        case "text":
+            cameraManager.startTextRecognitionStream()
+            print("Started text recognition") // Debugging
+
+        case "stop":
+            cameraManager.stopLiveStream()
+            cameraManager.stopTextRecognitionStream()
+            print("Stopped detection and text recognition") // Debugging
+
+        case "help":
+            cameraManager.capturePhotoAndVideo { success in
+                cameraManager.announceHelpRequestSuccess()
+                sendHelpRequest()
+            }
+            print("Help request sent") // Debugging
+
+        default:
+            cameraManager.announceMessage("Unknown command. Please try again.")
+            print("Unknown command: \(command)") // Debugging
+        }
+    }
+
+
+
 
     /// Sends a help request to the guardian by creating a notification in Firestore.
     /// Sends a help request notification
@@ -821,6 +895,43 @@ class CameraManager: NSObject, ObservableObject {
     }
 
 }
+class MotionManager: ObservableObject {
+    private let motionManager = CMMotionManager()
+    private var lastShakeTime: TimeInterval = 0
+
+    @Published var isShaking = false
+
+    func startMonitoring() {
+        motionManager.accelerometerUpdateInterval = 0.1
+        motionManager.startAccelerometerUpdates(to: .main) { [weak self] (data, error) in
+            guard let self = self, let data = data else { return }
+            let acceleration = data.acceleration
+            let magnitude = sqrt(acceleration.x * acceleration.x + acceleration.y * acceleration.y + acceleration.z * acceleration.z)
+
+            print("Acceleration magnitude: \(magnitude)")
+
+            if magnitude > 2.5, Date().timeIntervalSince1970 - self.lastShakeTime > 1.0 {
+                print("Shake detected!")
+                self.isShaking = true
+                self.lastShakeTime = Date().timeIntervalSince1970
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    self.isShaking = false
+                }
+            }
+        }
+    }
+
+    func stopMonitoring() {
+        motionManager.stopAccelerometerUpdates()
+    }
+
+    deinit {
+        stopMonitoring()
+    }
+}
+
+
 
 extension CameraManager: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
