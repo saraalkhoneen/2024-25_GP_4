@@ -331,6 +331,8 @@ struct GuardianView: View {
         @State private var selectedNotifications: Set<String> = []
         @State private var isSelectAll: Bool = false
         
+        @State private var showInfoAlert = false
+
         var body: some View {
             NavigationView {
                 VStack {
@@ -406,7 +408,32 @@ struct GuardianView: View {
                         }
                     }
                 }
-                .navigationTitle("Notifications")
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        HStack {
+                            Text("Notifications")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(Color(hexString: "3C6E71"))
+
+                            Button(action: {
+                                showInfoAlert.toggle()
+                            }) {
+                                Image(systemName: "questionmark.circle")
+                                    .foregroundColor(Color(hexString: "3C6E71"))
+                                    .font(.title2)
+                            }
+                            .alert(isPresented: $showInfoAlert) {
+                                Alert(
+                                    title: Text("Info"),
+                                    message: Text("Notifications appear here when they arrive."),
+                                    dismissButton: .default(Text("OK"))
+                                )
+                            }
+                        }
+                    }
+                }
+
                 .navigationBarItems(trailing: Button(isEditing ? "Done" : "Select") {
                     isEditing.toggle()
                     if !isEditing {
@@ -482,15 +509,35 @@ struct GuardianView: View {
     // MARK: - Media View
     struct MediaView: View {
         @State private var selectedTab: String = "Photos" // Default selection
-        
+        @State private var showInfoAlert = false
+
         var body: some View {
             NavigationView {
                 VStack(spacing: 5) {
                     // Title and Description
-                    Text("Help Requests")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .padding(.top, 10)
+                    HStack(spacing: 8) {
+                        Text("Help Requests")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(Color(hexString: "3C6E71"))
+
+                        Button(action: {
+                            showInfoAlert.toggle()
+                        }) {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundColor(Color(hexString: "3C6E71"))
+                                .font(.title2)
+                        }
+                        .alert(isPresented: $showInfoAlert) {
+                            Alert(
+                                title: Text("Info"),
+                                message: Text("Media such as videos and pictures will appear here when uploaded."),
+                                dismissButton: .default(Text("OK"))
+                            )
+                        }
+                    }
+                    .padding(.top, 10)
+
                     // Segmented Control for Photos and Videos
                     HStack(spacing: 0) {
                         Button(action: { selectedTab = "Photos" }) {
@@ -517,6 +564,7 @@ struct GuardianView: View {
                     Spacer()
                 }
                 .background(Color.white.edgesIgnoringSafeArea(.all))
+                
             }
         }
     }
@@ -546,18 +594,13 @@ struct GuardianView: View {
     }
     
     struct PhotosView: View {
-        @State private var photoURLs: [(url: URL, date: Date)] = []
+        @State private var photoURLs: [(url: IdentifiableURL, date: Date)] = [] // Updated to use IdentifiableURL
         @State private var isLoading = true
-        @State private var selectedPhoto: URL?
-        @State private var isZoomed = false
-        @State private var showDeleteAlert = false
-        @State private var photoToDelete: URL?
-        
+        @State private var selectedPhoto: IdentifiableURL? = nil // Updated to use IdentifiableURL
         @State private var isEditing: Bool = false
         @State private var selectedPhotos: Set<URL> = []
         @State private var selectAllPhotos: Bool = false
 
-  
         var body: some View {
             VStack {
                 if isLoading {
@@ -571,7 +614,7 @@ struct GuardianView: View {
                             .padding(.horizontal)
                             .onChange(of: selectAllPhotos) { newValue in
                                 if newValue {
-                                    selectedPhotos = Set(photoURLs.map { $0.url })
+                                    selectedPhotos = Set(photoURLs.map { $0.url.url })
                                 } else {
                                     selectedPhotos.removeAll()
                                 }
@@ -579,33 +622,25 @@ struct GuardianView: View {
                     }
                     ScrollView {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
-                            ForEach(photoURLs, id: \.url) { item in
+                            ForEach(photoURLs, id: \.url.id) { item in
                                 VStack {
-                                    ZStack(alignment: .topTrailing) {
-                                        AsyncImage(url: item.url) { phase in
-                                            if let image = phase.image {
-                                                image
-                                                    .resizable()
-                                                    .scaledToFit()
-                                                    .cornerRadius(10)
-                                            } else if phase.error != nil {
-                                                Text("Error loading image")
-                                            } else {
-                                                ProgressView()
-                                            }
-                                        }
-                                        .frame(height: 150)
-
-                                        if isEditing {
-                                            Button(action: {
-                                                toggleSelection(for: item.url)
-                                            }) {
-                                                Image(systemName: selectedPhotos.contains(item.url) ? "checkmark.circle.fill" : "circle")
-                                                    .foregroundColor(selectedPhotos.contains(item.url) ? .blue : .gray)
-                                            }
-                                            .padding(10)
+                                    AsyncImage(url: item.url.url) { phase in
+                                        if let image = phase.image {
+                                            image
+                                                .resizable()
+                                                .scaledToFit()
+                                                .cornerRadius(10)
+                                                .onTapGesture {
+                                                    selectedPhoto = item.url // Trigger full-screen mode
+                                                }
+                                        } else if phase.error != nil {
+                                            Text("Error loading image")
+                                        } else {
+                                            ProgressView()
                                         }
                                     }
+                                    .frame(height: 150)
+
                                     Text("Date: \(formattedDate(item.date))")
                                         .font(.caption)
                                         .foregroundColor(.gray)
@@ -614,64 +649,21 @@ struct GuardianView: View {
                         }
                         .padding()
                     }
-                    if isEditing && !selectedPhotos.isEmpty {
-                        Button(action: deleteSelectedPhotos) {
-                            Text("Delete Selected")
-                                .foregroundColor(.white)
-                                .padding()
-                                .background(Color.red)
-                                .cornerRadius(10)
-                        }
-                        .padding()
-                    }
                 }
             }
-            .navigationBarItems(trailing: Button(isEditing ? "Done" : "Select") {
-                isEditing.toggle()
-                if !isEditing {
-                    selectedPhotos.removeAll()
-                    selectAllPhotos = false
-                }
-            })
-            .onAppear(perform: fetchPhotos)
+            .sheet(item: $selectedPhoto) { photo in
+                FullScreenImageView(imageURL: photo.url) // Show full-screen image
+            }
+            .onAppear(perform: fetchPhotos) // Calls fetchPhotos when the view appears
         }
 
-        private func toggleSelection(for url: URL) {
-            if selectedPhotos.contains(url) {
-                selectedPhotos.remove(url)
-            } else {
-                selectedPhotos.insert(url)
-            }
-            selectAllPhotos = selectedPhotos.count == photoURLs.count
-        }
-
-        private func deleteSelectedPhotos() {
-            guard let user = Auth.auth().currentUser else { return }
-
-            let group = DispatchGroup()
-            for photoURL in selectedPhotos {
-                group.enter()
-                let storageRef = Storage.storage().reference(forURL: photoURL.absoluteString)
-                storageRef.delete { error in
-                    if error == nil {
-                        photoURLs.removeAll { $0.url == photoURL }
-                    }
-                    group.leave()
-                }
-            }
-
-            group.notify(queue: .main) {
-                selectedPhotos.removeAll()
-                selectAllPhotos = false
-            }
-        }
         private func fetchPhotos() {
             guard let user = Auth.auth().currentUser else {
                 print("Error: User not logged in")
                 isLoading = false
                 return
             }
-            
+
             let storageRef = Storage.storage().reference().child("media/\(user.uid)/photos")
             storageRef.listAll { result, error in
                 if let error = error {
@@ -688,7 +680,8 @@ struct GuardianView: View {
                         item.downloadURL { url, _ in
                             if let url = url, let metadata = metadata, let timeCreated = metadata.timeCreated {
                                 DispatchQueue.main.async {
-                                    self.photoURLs.append((url: url, date: timeCreated))
+                                    let identifiableURL = IdentifiableURL(url: url) // Wrap URL
+                                    self.photoURLs.append((url: identifiableURL, date: timeCreated))
                                     self.photoURLs.sort { $0.date > $1.date } // Sort latest on top
                                 }
                             }
@@ -701,8 +694,6 @@ struct GuardianView: View {
             }
         }
 
-        
-        
         private func formattedDate(_ date: Date) -> String {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
@@ -710,6 +701,32 @@ struct GuardianView: View {
             return formatter.string(from: date)
         }
     }
+    struct IdentifiableURL: Identifiable {
+        let id = UUID() // Unique identifier for each item
+        let url: URL
+    }
+    struct FullScreenImageView: View {
+        let imageURL: URL
+
+        var body: some View {
+            VStack {
+                AsyncImage(url: imageURL) { phase in
+                    if let image = phase.image {
+                        image
+                            .resizable()
+                            .scaledToFit()
+                            .edgesIgnoringSafeArea(.all)
+                    } else if phase.error != nil {
+                        Text("Error loading image")
+                    } else {
+                        ProgressView()
+                    }
+                }
+            }
+            .background(Color.black.edgesIgnoringSafeArea(.all))
+        }
+    }
+
     
     struct ZoomableImageView: UIViewRepresentable {
         let image: UIImage
@@ -752,16 +769,11 @@ struct GuardianView: View {
     
     // MARK: - Videos View
     struct VideosView: View {
-        @State private var videoURLs: [(url: URL, date: Date)] = []
+        @State private var videoURLs: [(url: URL, date: Date)] = [] // List of videos
         @State private var isLoading = true
-        @State private var selectedVideo: URL?
-        @State private var isZoomed = false
-        @State private var showDeleteAlert = false
-        @State private var videoToDelete: URL?
-  
-           @State private var isEditing: Bool = false
-           @State private var selectedVideos: Set<URL> = []
-           @State private var selectAllVideos: Bool = false
+        @State private var isEditing: Bool = false
+        @State private var selectedVideos: Set<URL> = []
+        @State private var selectAllVideos: Bool = false
 
         var body: some View {
             VStack {
@@ -789,8 +801,11 @@ struct GuardianView: View {
                                     ZStack(alignment: .topTrailing) {
                                         VideoPlayer(player: AVPlayer(url: item.url))
                                             .frame(height: 150)
-                                            .background(Color.black)
                                             .cornerRadius(10)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                                            )
 
                                         if isEditing {
                                             Button(action: {
@@ -822,13 +837,6 @@ struct GuardianView: View {
                     }
                 }
             }
-            .navigationBarItems(trailing: Button(isEditing ? "Done" : "Select") {
-                isEditing.toggle()
-                if !isEditing {
-                    selectedVideos.removeAll()
-                    selectAllVideos = false
-                }
-            })
             .onAppear(perform: fetchVideos)
         }
 
@@ -861,13 +869,15 @@ struct GuardianView: View {
                 selectAllVideos = false
             }
         }
+    
+
         private func fetchVideos() {
             guard let user = Auth.auth().currentUser else {
                 print("Error: User not logged in")
                 isLoading = false
                 return
             }
-            
+
             let storageRef = Storage.storage().reference().child("media/\(user.uid)/videos")
             storageRef.listAll { result, error in
                 if let error = error {
@@ -897,28 +907,6 @@ struct GuardianView: View {
             }
         }
 
-        
-        private func deleteVideo(_ url: URL) {
-            guard let user = Auth.auth().currentUser else {
-                print("Error: User not logged in")
-                return
-            }
-            
-            let storageRef = Storage.storage().reference(forURL: url.absoluteString)
-            storageRef.delete { error in
-                if let error = error {
-                    print("Error deleting video from storage: \(error.localizedDescription)")
-                    return
-                }
-                
-                DispatchQueue.main.async {
-                    videoURLs.removeAll { $0.url == url }
-                }
-                
-                print("Video deleted successfully from storage.")
-            }
-        }
-        
         private func formattedDate(_ date: Date) -> String {
             let formatter = DateFormatter()
             formatter.dateStyle = .medium
@@ -926,7 +914,48 @@ struct GuardianView: View {
             return formatter.string(from: date)
         }
     }
-    
+
+
+
+    struct FullScreenVideoPlayer: View {
+        let videoURL: URL
+        @Binding var isPresented: Bool
+
+        @State private var player: AVPlayer? = nil // AVPlayer instance for playback
+
+        var body: some View {
+            ZStack(alignment: .topLeading) {
+                // VideoPlayer initialized with the player
+                VideoPlayer(player: player)
+                    .edgesIgnoringSafeArea(.all)
+                    .onAppear {
+                        // Initialize and start playback
+                        player = AVPlayer(url: videoURL)
+                        player?.play()
+                    }
+                    .onDisappear {
+                        // Stop playback when the view disappears
+                        player?.pause()
+                        player = nil
+                    }
+
+                // Close button
+                Button(action: {
+                    isPresented = false // Dismiss full-screen mode
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .resizable()
+                        .frame(width: 30, height: 30)
+                        .foregroundColor(.white)
+                        .padding()
+                }
+            }
+        }
+    }
+
+
+
+
     struct ZoomableVideoPlayerView: UIViewRepresentable {
         let videoURL: URL
 
@@ -1010,7 +1039,8 @@ struct GuardianView: View {
         @State private var locationAvailable = false
         @State private var viName: String = "Location" // Default title
         @State private var lastUpdated: String = "" // Store last update time
-        
+        @State private var showInfoAlert = false
+
         var body: some View {
             NavigationView {
                 VStack {
@@ -1033,6 +1063,25 @@ struct GuardianView: View {
                 }
                 .onAppear(perform: fetchLocation)
                 .navigationTitle(viName)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            showInfoAlert.toggle()
+                        }) {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundColor(Color(hexString: "3C6E71"))
+                                .font(.title2)
+                        }
+                        .alert(isPresented: $showInfoAlert) {
+                            Alert(
+                                title: Text("Info"),
+                                message: Text("This page shows the last known location of the visually impaired user."),
+                                dismissButton: .default(Text("OK"))
+                            )
+                        }
+                    }
+                }
+
             }
         }
         
