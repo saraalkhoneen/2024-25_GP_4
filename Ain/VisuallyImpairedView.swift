@@ -175,6 +175,23 @@ struct CameraTabView: View {
 
             VStack {
                 Spacer()
+               
+                Text(cameraManager.isUsingExternalCamera ? "External Camera ✅" : "Built-in Camera 📷")
+                    .foregroundColor(.gray)
+                    .font(.caption)
+               
+                Button(action: {
+                    cameraManager.switchCamera()
+                }) {
+                    Text("Switch Camera")
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                }
+                .padding(.bottom, 10)
+
+                
                 if cameraManager.uploadProgress > 0 && cameraManager.uploadProgress < 100 {
                     CircularProgressBar(progress: cameraManager.uploadProgress / 100)
                         .frame(width: 80, height: 80)
@@ -363,8 +380,12 @@ struct CameraTabView: View {
 
                                // Trigger local notification
                                self.triggerLocalNotification(title: "Help Request", body: "\(fullName) has requested help.")
+
+                               // 🔊 Add this line to announce
+                               self.cameraManager.announceHelpRequestSent()
                            }
                        }
+
                }
            }
        }
@@ -466,7 +487,7 @@ class CameraManager: NSObject, ObservableObject {
     private var lastAnnouncedObject: String?
     private var lastAnnouncementTime = Date() // Track the time of the last announcement
     private let framesPerSecond = 5 // Adjusted for smoother detection
-    private let allowedClasses = ["Desk", "Light Switch", "Hand", "Earbud", "Door", "Board", "Airpods Case", "Oumy", "Juju", "Laptop", "Projector", "Trash Can", "Outlet", "Cellphone", "Chair", "Fire Extinguisher", "Glasses", "Podium", "Keyboard", "Pencil", "Exit sign", "Poster", "Water Bottle"]
+    private let allowedClasses = ["Desk", "Light Switch", "Hand", "Earbud", "Door", "Board", "Airpods Case", "Oumy", "Juju", "Laptop", "Projector", "Trash Can", "Outlet", "Cellphone", "Chair", "Fire Extinguisher", "Glasses", "Podium", "Keyboard", "Pencil", "Exit sign", "Pen", "Water Bottle"]
     
     @Published var isDetectionRunning = false
     @Published var uploadProgress: Double = 0 // Track upload progress
@@ -481,6 +502,8 @@ class CameraManager: NSObject, ObservableObject {
     private let textRecognitionInterval: TimeInterval = 2.0 // 2 seconds
     private var textRecognitionTask: DispatchWorkItem? // To manage recognition cancellation
 
+    private var selectedCamera: AVCaptureDevice?
+    @Published var isUsingExternalCamera: Bool = false
 
 
     override init() {
@@ -491,42 +514,67 @@ class CameraManager: NSObject, ObservableObject {
     func configure() {
         session.beginConfiguration()
         session.sessionPreset = .high
-        
-        guard let backCamera = AVCaptureDevice.default(for: .video),
-              let input = try? AVCaptureDeviceInput(device: backCamera) else {
-            print("Error: Unable to access the back camera!")
-            session.commitConfiguration()
-            return
-        }
-        
-        if session.canAddInput(input) {
-            session.addInput(input)
+
+        // Discover external and built-in cameras
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.external, .builtInWideAngleCamera],
+            mediaType: .video,
+            position: .unspecified
+        )
+
+        let devices = discoverySession.devices
+        if let externalCamera = devices.first(where: { $0.deviceType == .external }) {
+            selectedCamera = externalCamera
+        } else if let backCamera = devices.first(where: { $0.position == .back }) {
+            selectedCamera = backCamera
+        } else if let frontCamera = devices.first(where: { $0.position == .front }) {
+            selectedCamera = frontCamera
         } else {
-            print("Error: Couldn't add camera input.")
+            print("❌ No available cameras.")
             session.commitConfiguration()
             return
         }
-        
+
+        // Detect camera type
+        isUsingExternalCamera = selectedCamera?.deviceType == .external
+
+        // Add camera input
+        guard let selectedCamera = selectedCamera,
+              let cameraInput = try? AVCaptureDeviceInput(device: selectedCamera),
+              session.canAddInput(cameraInput) else {
+            print("Error: Could not configure camera input")
+            session.commitConfiguration()
+            return
+        }
+        session.addInput(cameraInput)
+
+        // Add microphone input
+        if let audioDevice = AVCaptureDevice.default(for: .audio),
+           let micInput = try? AVCaptureDeviceInput(device: audioDevice),
+           session.canAddInput(micInput) {
+            session.addInput(micInput)
+        } else {
+            print("Warning: Could not add microphone input ❌")
+        }
+
+        // Add outputs
         videoOutput.setSampleBufferDelegate(self, queue: DispatchQueue(label: "videoQueue"))
         if session.canAddOutput(videoOutput) {
             session.addOutput(videoOutput)
-        } else {
-            print("Error: Couldn't add video output.")
-            session.commitConfiguration()
-            return
         }
-        
+
         if session.canAddOutput(photoOutput) {
-            session.addOutput(photoOutput) // Add photo output
+            session.addOutput(photoOutput)
         }
-        
+
         if session.canAddOutput(videoFileOutput) {
-            session.addOutput(videoFileOutput) // Add video file output
+            session.addOutput(videoFileOutput)
         }
-        
+
         session.commitConfiguration()
-        session.startRunning() // Camera feed always runs
+        session.startRunning()
     }
+
     
     func startLiveStream() {
         isDetectionRunning = true
@@ -555,7 +603,48 @@ class CameraManager: NSObject, ObservableObject {
                speechSynthesizer.stopSpeaking(at: .immediate)
            }
        }
-    
+    func switchCamera() {
+        session.beginConfiguration()
+
+        // Remove all current inputs
+        for input in session.inputs {
+            session.removeInput(input)
+        }
+
+        let discoverySession = AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.external, .builtInWideAngleCamera],
+            mediaType: .video,
+            position: .unspecified
+        )
+
+        let devices = discoverySession.devices
+
+        // Switch between external and built-in
+        if isUsingExternalCamera {
+            // Currently external ➔ switch to built-in
+            if let builtInCamera = devices.first(where: { $0.deviceType == .builtInWideAngleCamera && $0.position == .back }) {
+                selectedCamera = builtInCamera
+            }
+        } else {
+            // Currently built-in ➔ switch to external
+            if let externalCamera = devices.first(where: { $0.deviceType == .external }) {
+                selectedCamera = externalCamera
+            }
+        }
+
+        // Update
+        if let selectedCamera = selectedCamera,
+           let newInput = try? AVCaptureDeviceInput(device: selectedCamera),
+           session.canAddInput(newInput) {
+            session.addInput(newInput)
+            isUsingExternalCamera = (selectedCamera.deviceType == .external)
+        } else {
+            print("⚠️ Could not switch camera!")
+        }
+
+        session.commitConfiguration()
+    }
+
     private func resizeImageBuffer(_ imageBuffer: CVImageBuffer, width: Int, height: Int) -> CVImageBuffer {
         let ciImage = CIImage(cvPixelBuffer: imageBuffer) // Convert image buffer to CIImage
         let resizeTransform = CGAffineTransform(scaleX: CGFloat(width) / ciImage.extent.width,
@@ -694,10 +783,17 @@ class CameraManager: NSObject, ObservableObject {
         announceMessage(successMessage)
     }
 
-
+    func announceHelpRequestSent() {
+        let utterance = AVSpeechUtterance(string: "The help request is sent.")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-UK")
+        DispatchQueue.main.async {
+            self.speechSynthesizer.speak(utterance)
+        }
+    }
+//هنا المودل مهممممم حطي الجديد
     private func configureCoreMLModel() {
         do {
-            let coreMLModel = try AinModel_1(configuration: MLModelConfiguration())
+            let coreMLModel = try last_m(configuration: MLModelConfiguration())
             model = try VNCoreMLModel(for: coreMLModel.model)
             print("Model loaded successfully.")
         } catch {
@@ -766,7 +862,7 @@ class CameraManager: NSObject, ObservableObject {
 
     private func announceDetectedObject(_ object: String) {
         let utterance = AVSpeechUtterance(string: "\(object)")
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-UK")
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-GB")
         DispatchQueue.main.async {
             self.speechSynthesizer.speak(utterance)
         }
@@ -792,7 +888,7 @@ class CameraManager: NSObject, ObservableObject {
 
     func capturePhotoAndVideo(completion: @escaping (Bool) -> Void) {
         let outputDirectory = FileManager.default.temporaryDirectory
-        let videoOutputURL = outputDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
+        let videoOutputURL = outputDirectory.appendingPathComponent("\(UUID().uuidString).mov")
 
         if !videoFileOutput.isRecording {
             videoFileOutput.startRecording(to: videoOutputURL, recordingDelegate: self)
@@ -852,14 +948,20 @@ class CameraManager: NSObject, ObservableObject {
             }
 
             // Upload video
+           
+            // Upload video with metadata
             dispatchGroup.enter()
-            let videoUploadTask = videoRef.putFile(from: videoURL, metadata: nil) { _, error in
+            let metadata = StorageMetadata()
+            metadata.contentType = "video/quicktime" // or "video/mp4" — both work, but "video/quicktime" is more accurate for .mov
+
+            let videoUploadTask = videoRef.putFile(from: videoURL, metadata: metadata) { _, error in
                 if let error = error {
                     print("Video upload failed: \(error.localizedDescription)")
                     uploadSuccess = false
                 }
                 dispatchGroup.leave()
             }
+
 
             dispatchGroup.notify(queue: .main) {
                 completion(uploadSuccess)
