@@ -65,10 +65,30 @@ Here’s how Ain helps visually impaired users navigate the world:
 
 ---
 
-## 📦 Installation and Setup  
-Follow these steps to install and get Ain running in no time:
+## 📦 Installation and Setup
 
-1. **System Requirements**: Ensure you have an iOS device and Xcode installed.
-2. **Connect GoPro**: Link your **GoPro Hero 12** for real-time video feed.
-3. **Dependencies**: Install all required dependencies and libraries.
-4. **Run the App**: Compile and run the app through Xcode.
+Follow these steps to install and get **Ain** running in no time:
+
+1. **System Requirements**  
+   - macOS with **Xcode** installed.  
+   - iOS Simulator (comes with Xcode).  
+
+2. **Simulator Support**  
+   - This version is built for the **iOS Simulator**, not physical devices.  
+
+3. **Download the App File**  
+   - Get the zipped `.app` file from the provided download link.  
+   - Unzip the file to extract `Ain.app`.
+
+4. **Run on iOS Simulator**  
+   - Open **Xcode > Open Developer Tool > Simulator**  
+   - Drag and drop the `Ain.app` file into the simulator window.  
+   - The app will install and launch automatically.
+
+---
+
+## 🛠️ Optional: Run from Source (For Developers)
+
+1. **Clone the Repository**  
+   ```bash
+   git clone https://github.com/saraalkhoneen/2024-25_GP_4.git
